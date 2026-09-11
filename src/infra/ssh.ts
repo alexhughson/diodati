@@ -4,7 +4,7 @@ import { appendFileSync, existsSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 
-const CONTROL_PATH = "/tmp/exevibe-%C";
+const CONTROL_PATH = "/tmp/diodati-%C";
 const KNOWN_HOSTS = join(homedir(), ".ssh", "known_hosts");
 
 export type SshResult = {

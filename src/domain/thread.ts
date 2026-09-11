@@ -1,4 +1,4 @@
-import type { Folder, FolderId, MachineId, Thread, ThreadId } from "@shared/types";
+import type { MachineId, Thread } from "@shared/types";
 
 export type ShelleyConversationRow = {
   conversation_id: string;
@@ -14,13 +14,6 @@ export type ShelleyConversationRow = {
   parent_conversation_id?: string | null;
   user_initiated?: boolean;
 };
-
-export function folderIdFromCwd(cwd: string | null): FolderId {
-  if (!cwd) {
-    return "no-cwd";
-  }
-  return cwd;
-}
 
 export function folderLabel(cwd: string | null): string {
   if (!cwd) {
@@ -52,14 +45,6 @@ export function displayFolder(cwd: string | null, homeDir: string | null): strin
     return `~/${name}`;
   }
   return name;
-}
-
-export function folderFromCwd(cwd: string | null): Folder {
-  return {
-    id: folderIdFromCwd(cwd),
-    cwd,
-    label: folderLabel(cwd),
-  };
 }
 
 export function threadFromRow(row: ShelleyConversationRow, machineId: MachineId): Thread {
@@ -102,6 +87,3 @@ export function threadTitle(thread: Thread): string {
   return thread.id.slice(0, 8);
 }
 
-export function sameThread(left: ThreadId, right: ThreadId): boolean {
-  return left === right;
-}

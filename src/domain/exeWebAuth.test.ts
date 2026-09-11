@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { cookieMeansExeWebLogin } from "./exeWebAuth";
 
-// Rows from persist:exevibe-preview Cookies on 2026-09-11.
+// Rows from persist:diodati-preview Cookies on 2026-09-11.
 describe("cookieMeansExeWebLogin", () => {
   test("exe-auth on exe.dev is web login", () => {
     expect(cookieMeansExeWebLogin({ name: "exe-auth", domain: "exe.dev" })).toBe(true);

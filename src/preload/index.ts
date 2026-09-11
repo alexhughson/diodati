@@ -5,7 +5,6 @@ import type { ComposerOptions, MachineId, ThreadId } from "@shared/types";
 const api: IpcApi = {
   listMachines: () => ipcRenderer.invoke("machines.list"),
   loadAllCatalogs: () => ipcRenderer.invoke("catalogs.loadAll"),
-  loadCatalog: (machineId: MachineId) => ipcRenderer.invoke("catalog.load", machineId),
   listModels: (machineId: MachineId) => ipcRenderer.invoke("models.list", machineId),
   openThread: (machineId: MachineId, threadId: ThreadId) => ipcRenderer.invoke("thread.open", machineId, threadId),
   createDraft: (machineId: MachineId, options: ComposerOptions) => {
@@ -62,4 +61,4 @@ const api: IpcApi = {
   },
 };
 
-contextBridge.exposeInMainWorld("exevibe", api);
+contextBridge.exposeInMainWorld("diodati", api);

@@ -1,6 +1,5 @@
 export type MachineId = string;
 export type ThreadId = string;
-export type FolderId = string;
 
 export type MachineOwnership = "owned" | "shared" | "team";
 
@@ -11,17 +10,8 @@ export type Machine = {
   status: string;
   sshDest: string;
   httpsUrl: string;
-  shelleyUrl: string;
-  terminalUrl: string;
-  proxyPort: number | null;
   ownership: MachineOwnership;
   canShell: boolean;
-};
-
-export type Folder = {
-  id: FolderId;
-  cwd: string | null;
-  label: string;
 };
 
 export type Thread = {
@@ -37,14 +27,13 @@ export type Thread = {
 };
 
 export type FolderGroup = {
-  folder: Folder;
+  cwd: string | null;
   threads: Thread[];
 };
 
 export type MachineCatalog = {
   machine: Machine;
-  groups: FolderGroup[];
-  flattenFolders: boolean;
+  threads: Thread[];
   loadError: string | null;
   homeDir: string | null;
 };
@@ -81,7 +70,6 @@ export type ChatBlock =
 export type ProjectedMessage = {
   id: string;
   sequenceId: number;
-  type: string;
   role: "user" | "agent" | "other";
   createdAt: string;
   blocks: ChatBlock[];
@@ -91,8 +79,4 @@ export type ComposerOptions = {
   model: string;
   cwd: string | null;
   thinkingLevel: ReasoningLevel | null;
-};
-
-export type AppError = {
-  message: string;
 };

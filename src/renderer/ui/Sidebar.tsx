@@ -1,3 +1,4 @@
+import { groupThreads } from "@domain/catalog";
 import { displayFolder } from "@domain/thread";
 import { threadTitle } from "@domain/thread";
 import type { MachineCatalog, Thread } from "@shared/types";
@@ -28,7 +29,7 @@ export function Sidebar(props: Props) {
     <aside className="sidebar">
       <div className="sidebar-body">
       <div className="brand">
-        <h1>Exevibe</h1>
+        <h1>Diodati</h1>
         <div className="brand-actions">
         <button
           className="icon-btn"
@@ -91,6 +92,8 @@ function MachineBlock(props: {
   terminalOpen: boolean;
 }) {
   const machine = props.catalog.machine;
+  const groups = groupThreads(props.catalog.threads);
+  const flattenFolders = groups.length <= 1;
   const loadError = props.catalog.loadError;
   let dotClass = "dot";
   if (loadError) {
@@ -131,10 +134,10 @@ function MachineBlock(props: {
           <ComposeIcon />
         </button>
       </div>
-      {props.catalog.groups.map((group) => (
-        <div key={group.folder.id}>
-          {props.catalog.flattenFolders ? null : (
-            <div className="folder-label">{displayFolder(group.folder.cwd, props.catalog.homeDir)}</div>
+      {groups.map((group) => (
+        <div key={group.cwd ?? "no-cwd"}>
+          {flattenFolders ? null : (
+            <div className="folder-label">{displayFolder(group.cwd, props.catalog.homeDir)}</div>
           )}
           {group.threads.map((thread) => {
             const title = threadTitle(thread);

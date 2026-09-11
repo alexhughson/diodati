@@ -46,9 +46,6 @@ export function machineFromRow(row: ExeVmRow, ownership: MachineOwnership): Mach
     status: row.status ?? "unknown",
     sshDest: parseSshDest(row),
     httpsUrl: row.https_url ?? `https://${id}.exe.xyz`,
-    shelleyUrl: row.shelley_url ?? `https://${id}.shelley.exe.xyz`,
-    terminalUrl: row.terminal_url ?? `https://${id}.xterm.exe.xyz`,
-    proxyPort: row.proxy_port ?? null,
     ownership,
     canShell: row.access?.shell !== false,
   };

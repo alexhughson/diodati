@@ -1,6 +1,6 @@
 {
-  "name": "exevibe",
-  "productName": "Exevibe",
+  "name": "diodati",
+  "productName": "Diodati",
   "version": "0.1.0",
   "description": "Desktop client for exe.dev machines and Shelley threads",
   "main": "./out/main/index.js",

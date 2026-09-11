@@ -1,4 +1,4 @@
-# Exevibe
+# Diodati
 
 Desktop client for exe.dev machines and the Shelley agent that runs on each machine.
 

@@ -14,7 +14,7 @@ const components: Components = {
         onClick={(event) => {
           event.preventDefault();
           if (href) {
-            void window.exevibe.openExternal(href);
+            void window.diodati.openExternal(href);
           }
         }}
       >

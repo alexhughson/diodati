@@ -231,7 +231,6 @@ export function projectMessage(
   return {
     id: row.message_id,
     sequenceId: row.sequence_id,
-    type: row.type,
     role,
     createdAt: row.created_at,
     blocks,
@@ -333,13 +332,3 @@ export function segmentBlocks(blocks: ChatBlock[]): MessageSegment[] {
   return segments;
 }
 
-export function mergeMessages(existing: ProjectedMessage[], incoming: ProjectedMessage[]): ProjectedMessage[] {
-  const byId = new Map<string, ProjectedMessage>();
-  for (const message of existing) {
-    byId.set(message.id, message);
-  }
-  for (const message of incoming) {
-    byId.set(message.id, message);
-  }
-  return [...byId.values()].sort((left, right) => left.sequenceId - right.sequenceId);
-}

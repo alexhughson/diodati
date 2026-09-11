@@ -1,8 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { folderChoices, upsertThreadInCatalogs } from "@domain/catalog";
 import { defaultModel } from "@domain/model";
-import { mergeMessages } from "@domain/message";
-import type { Machine, MachineCatalog, Model, ProjectedMessage, ReasoningLevel, Thread } from "@shared/types";
+import type { MachineCatalog, Model, ProjectedMessage, ReasoningLevel, Thread } from "@shared/types";
 import { ChatPane } from "./ui/ChatPane";
 import { Composer } from "./ui/Composer";
 import { PreviewPane } from "./ui/PreviewPane";
@@ -21,7 +20,6 @@ import {
 import { readTheme, writeTheme, type ThemeId } from "./ui/themes";
 
 export function App() {
-  const [machines, setMachines] = useState<Machine[]>([]);
   const [catalogs, setCatalogs] = useState<MachineCatalog[]>([]);
   const [selectedMachineId, setSelectedMachineId] = useState<string | null>(null);
   const [models, setModels] = useState<Model[]>([]);
@@ -46,13 +44,10 @@ export function App() {
   const [layout, setLayout] = useState<LayoutSizes>(defaultLayoutSizes);
   const [dragBlocksPreview, setDragBlocksPreview] = useState(false);
 
-  const selectedMachine = useMemo(() => {
-    return machines.find((machine) => machine.id === selectedMachineId) ?? null;
-  }, [machines, selectedMachineId]);
-
   const selectedCatalog = useMemo(() => {
     return catalogs.find((catalog) => catalog.machine.id === selectedMachineId) ?? null;
   }, [catalogs, selectedMachineId]);
+  const selectedMachine = selectedCatalog?.machine ?? null;
 
   const folders = selectedCatalog ? folderChoices(selectedCatalog) : [];
   const activeCwd = thread?.cwd ?? draftCwd;
@@ -73,11 +68,10 @@ export function App() {
   const refreshMachines = async () => {
     setLoadingMachines(true);
     try {
-      const rows = await window.exevibe.listMachines();
-      setMachines(rows);
-      const nextCatalogs = await window.exevibe.loadAllCatalogs();
+      await window.diodati.listMachines();
+      const nextCatalogs = await window.diodati.loadAllCatalogs();
       setCatalogs(nextCatalogs);
-      if (selectedMachineId && !rows.some((machine) => machine.id === selectedMachineId)) {
+      if (selectedMachineId && !nextCatalogs.some((catalog) => catalog.machine.id === selectedMachineId)) {
         resetChat();
         setSelectedMachineId(null);
       }
@@ -93,12 +87,12 @@ export function App() {
 
   useEffect(() => {
     let alive = true;
-    void window.exevibe.previewLoggedIn().then((loggedIn) => {
+    void window.diodati.previewLoggedIn().then((loggedIn) => {
       if (alive) {
         setPreviewLoggedIn(loggedIn);
       }
     });
-    const stop = window.exevibe.onPreviewAuth((loggedIn) => {
+    const stop = window.diodati.onPreviewAuth((loggedIn) => {
       setPreviewLoggedIn(loggedIn);
     });
     return () => {
@@ -108,14 +102,14 @@ export function App() {
   }, []);
 
   useEffect(() => {
-    return window.exevibe.onStream((event) => {
+    return window.diodati.onStream((event) => {
       if (event.kind === "error") {
         setError(event.message);
         return;
       }
       if (event.kind === "messages") {
         if (thread && event.threadId === thread.id) {
-          setMessages((current) => mergeMessages(current, event.messages));
+          setMessages(event.messages);
           setLiveDelta("");
         }
         return;
@@ -148,7 +142,7 @@ export function App() {
     if (!selectedMachine || !previewOpen) {
       return;
     }
-    void window.exevibe.setPreviewUrl(selectedMachine.httpsUrl);
+    void window.diodati.setPreviewUrl(selectedMachine.httpsUrl);
   }, [selectedMachine, previewOpen]);
 
   useEffect(() => {
@@ -205,7 +199,7 @@ export function App() {
     if (!catalog) {
       return null;
     }
-    const all = catalog.groups.flatMap((group) => group.threads);
+    const all = catalog.threads;
     const latest = [...all].sort((left, right) => right.updatedAt.localeCompare(left.updatedAt))[0];
     if (latest?.cwd) {
       return latest.cwd;
@@ -214,13 +208,13 @@ export function App() {
   };
 
   const ensureModels = async (machineId: string) => {
-    const machine = machines.find((item) => item.id === machineId);
+    const machine = catalogs.find((item) => item.machine.id === machineId)?.machine;
     if (!machine || !machine.canShell) {
       setModels([]);
       return;
     }
     try {
-      const nextModels = await window.exevibe.listModels(machineId);
+      const nextModels = await window.diodati.listModels(machineId);
       setModels(nextModels);
       markMachineError(machineId, null);
       const current = nextModels.find((model) => model.id === modelId) ?? null;
@@ -270,7 +264,7 @@ export function App() {
     }
     try {
       await ensureModels(next.machineId);
-      const opened = await window.exevibe.openThread(next.machineId, next.id);
+      const opened = await window.diodati.openThread(next.machineId, next.id);
       setThread(opened.thread);
       setMessages(opened.messages);
       setWorking(opened.thread.working);
@@ -289,12 +283,13 @@ export function App() {
     try {
       let current = thread;
       if (!current) {
-        current = await window.exevibe.createDraft(selectedMachineId, composerOptions);
-        setThread(current);
+        const created = await window.diodati.createDraft(selectedMachineId, composerOptions);
+        current = created;
+        setThread(created);
         setComposing(false);
-        setCatalogs((existing) => upsertThreadInCatalogs(existing, current));
+        setCatalogs((existing) => upsertThreadInCatalogs(existing, created));
       }
-      await window.exevibe.sendChat(selectedMachineId, current.id, message, composerOptions);
+      await window.diodati.sendChat(selectedMachineId, current.id, message, composerOptions);
       setWorking(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -305,14 +300,14 @@ export function App() {
     if (!selectedMachineId || !thread) {
       return;
     }
-    await window.exevibe.cancelChat(selectedMachineId, thread.id);
+    await window.diodati.cancelChat(selectedMachineId, thread.id);
   };
 
   const terminalSessions = useMemo(() => {
-    return machines
-      .filter((machine) => openedTerminalIds.includes(machine.id))
-      .map((machine) => ({ id: machine.id, name: machine.name }));
-  }, [machines, openedTerminalIds]);
+    return catalogs
+      .filter((catalog) => openedTerminalIds.includes(catalog.machine.id))
+      .map((catalog) => ({ id: catalog.machine.id, name: catalog.machine.name }));
+  }, [catalogs, openedTerminalIds]);
 
   const toggleTerminal = (machineId: string) => {
     if (terminalOpen && selectedMachineId === machineId) {
@@ -333,8 +328,8 @@ export function App() {
 
   const login = async () => {
     try {
-      const url = await window.exevibe.openMagicLogin();
-      await window.exevibe.setPreviewUrl(url);
+      const url = await window.diodati.openMagicLogin();
+      await window.diodati.setPreviewUrl(url);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     }
@@ -456,7 +451,7 @@ export function App() {
                 onModel={async (nextModel) => {
                   setModelId(nextModel);
                   if (selectedMachineId && thread && !thread.isDraft) {
-                    await window.exevibe.switchModel(selectedMachineId, thread.id, {
+                    await window.diodati.switchModel(selectedMachineId, thread.id, {
                       ...composerOptions,
                       model: nextModel,
                     });
@@ -515,7 +510,7 @@ export function App() {
         onLogin={() => void login()}
         onOpenExternal={() => {
           if (selectedMachine) {
-            void window.exevibe.openExternal(selectedMachine.httpsUrl);
+            void window.diodati.openExternal(selectedMachine.httpsUrl);
           }
         }}
         onResizeStart={() => {

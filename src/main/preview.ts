@@ -1,7 +1,7 @@
 import { cookieMeansExeWebLogin } from "@domain/exeWebAuth";
 import { BrowserView, type BrowserWindow, session, shell } from "electron";
 
-const PARTITION = "persist:exevibe-preview";
+const PARTITION = "persist:diodati-preview";
 
 export type PreviewController = {
   show: (bounds: { x: number; y: number; width: number; height: number }) => void;

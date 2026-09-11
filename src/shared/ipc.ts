@@ -28,7 +28,6 @@ export type StreamEvent =
 export type IpcApi = {
   listMachines: () => Promise<Machine[]>;
   loadAllCatalogs: () => Promise<MachineCatalog[]>;
-  loadCatalog: (machineId: MachineId) => Promise<MachineCatalog>;
   listModels: (machineId: MachineId) => Promise<Model[]>;
   openThread: (machineId: MachineId, threadId: ThreadId) => Promise<ThreadOpened>;
   createDraft: (machineId: MachineId, options: ComposerOptions) => Promise<Thread>;

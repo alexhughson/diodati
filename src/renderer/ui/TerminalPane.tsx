@@ -85,9 +85,9 @@ function TerminalSession(props: {
     fitRef.current = fit;
 
     const onData = term.onData((data) => {
-      void window.exevibe.writeTerminal(props.machineId, data);
+      void window.diodati.writeTerminal(props.machineId, data);
     });
-    const stopEvents = window.exevibe.onTerminal((event) => {
+    const stopEvents = window.diodati.onTerminal((event) => {
       if (event.machineId !== props.machineId) {
         return;
       }
@@ -115,7 +115,7 @@ function TerminalSession(props: {
       return;
     }
     fit.fit();
-    void window.exevibe.openTerminal(props.machineId, term.cols, term.rows).catch((err) => {
+    void window.diodati.openTerminal(props.machineId, term.cols, term.rows).catch((err) => {
       props.onError(err instanceof Error ? err.message : String(err));
     });
     term.focus();
@@ -124,7 +124,7 @@ function TerminalSession(props: {
         return;
       }
       fit.fit();
-      void window.exevibe.resizeTerminal(props.machineId, term.cols, term.rows);
+      void window.diodati.resizeTerminal(props.machineId, term.cols, term.rows);
     });
     observer.observe(host);
     return () => {

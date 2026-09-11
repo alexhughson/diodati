@@ -1,5 +1,10 @@
 import type { FolderGroup, Machine, MachineCatalog, Thread } from "@shared/types";
-import { displayFolder, folderFromCwd, folderIdFromCwd } from "./thread";
+import { displayFolder, folderLabel } from "./thread";
+
+export type FolderChoice = {
+  cwd: string;
+  label: string;
+};
 
 export function emptyCatalog(
   machine: Machine,
@@ -8,21 +13,16 @@ export function emptyCatalog(
 ): MachineCatalog {
   return {
     machine,
-    groups: [],
-    flattenFolders: true,
+    threads: [],
     loadError,
     homeDir,
   };
 }
 
-export function groupThreads(
-  machine: Machine,
-  threads: Thread[],
-  homeDir: string | null = null,
-): MachineCatalog {
+export function groupThreads(threads: Thread[]): FolderGroup[] {
   const byFolder = new Map<string, Thread[]>();
   for (const thread of threads) {
-    const key = folderIdFromCwd(thread.cwd);
+    const key = thread.cwd ?? "";
     const existing = byFolder.get(key);
     if (existing) {
       existing.push(thread);
@@ -32,32 +32,21 @@ export function groupThreads(
   }
 
   const groups: FolderGroup[] = [];
-  for (const [key, folderThreads] of byFolder.entries()) {
+  for (const folderThreads of byFolder.values()) {
     const cwd = folderThreads[0]?.cwd ?? null;
     const sorted = [...folderThreads].sort((left, right) => {
       return right.updatedAt.localeCompare(left.updatedAt);
     });
-    groups.push({
-      folder: folderFromCwd(cwd),
-      threads: sorted,
-    });
-    void key;
+    groups.push({ cwd, threads: sorted });
   }
 
-  groups.sort((left, right) => left.folder.label.localeCompare(right.folder.label));
-
-  return {
-    machine,
-    groups,
-    flattenFolders: groups.length <= 1,
-    loadError: null,
-    homeDir,
-  };
+  groups.sort((left, right) => folderLabel(left.cwd).localeCompare(folderLabel(right.cwd)));
+  return groups;
 }
 
-export function folderChoices(catalog: MachineCatalog): Array<{ cwd: string; label: string }> {
+export function folderChoices(catalog: MachineCatalog): FolderChoice[] {
   const seen = new Set<string>();
-  const choices: Array<{ cwd: string; label: string }> = [];
+  const choices: FolderChoice[] = [];
   const add = (cwd: string | null) => {
     if (!cwd || seen.has(cwd)) {
       return;
@@ -66,56 +55,34 @@ export function folderChoices(catalog: MachineCatalog): Array<{ cwd: string; lab
     choices.push({ cwd, label: displayFolder(cwd, catalog.homeDir) });
   };
   add(catalog.homeDir);
-  for (const group of catalog.groups) {
-    add(group.folder.cwd);
+  for (const thread of catalog.threads) {
+    add(thread.cwd);
   }
   return choices;
 }
 
-export function upsertThread(catalog: MachineCatalog, thread: Thread): MachineCatalog {
-  if (catalog.machine.id !== thread.machineId) {
-    return catalog;
-  }
-  const targetId = folderIdFromCwd(thread.cwd);
+export function replaceThread(threads: Thread[], thread: Thread): Thread[] {
   let found = false;
-  const groups: FolderGroup[] = [];
-  for (const group of catalog.groups) {
-    const threads: Thread[] = [];
-    for (const item of group.threads) {
-      if (item.id === thread.id) {
-        threads.push(thread);
-        found = true;
-      } else {
-        threads.push(item);
-      }
+  const next: Thread[] = [];
+  for (const item of threads) {
+    if (item.id === thread.id) {
+      next.push(thread);
+      found = true;
+    } else {
+      next.push(item);
     }
-    groups.push({ folder: group.folder, threads });
   }
   if (!found) {
-    let placed = false;
-    for (const group of groups) {
-      if (group.folder.id === targetId) {
-        group.threads.unshift(thread);
-        placed = true;
-        break;
-      }
-    }
-    if (!placed) {
-      groups.push({
-        folder: folderFromCwd(thread.cwd),
-        threads: [thread],
-      });
-    }
+    return [thread, ...threads];
   }
-  return {
-    machine: catalog.machine,
-    groups,
-    flattenFolders: groups.length <= 1,
-    loadError: catalog.loadError,
-    homeDir: catalog.homeDir,
-  };
+  return next;
 }
 
 export function upsertThreadInCatalogs(catalogs: MachineCatalog[], thread: Thread): MachineCatalog[] {
-  return catalogs.map((catalog) => upsertThread(catalog, thread));
+  return catalogs.map((catalog) => {
+    if (catalog.machine.id !== thread.machineId) {
+      return catalog;
+    }
+    return { ...catalog, threads: replaceThread(catalog.threads, thread) };
+  });
 }

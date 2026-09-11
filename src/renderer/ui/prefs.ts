@@ -1,6 +1,6 @@
 export type TerminalDock = "bottom" | "right";
 
-const DOCK_KEY = "exevibe.terminalDock";
+const DOCK_KEY = "diodati.terminalDock";
 
 export function readTerminalDock(): TerminalDock {
   const raw = window.localStorage.getItem(DOCK_KEY);
@@ -21,7 +21,7 @@ export type LayoutSizes = {
   terminalRight: number;
 };
 
-const SIZE_KEY = "exevibe.layoutSizes";
+const SIZE_KEY = "diodati.layoutSizes";
 
 export const defaultLayoutSizes: LayoutSizes = {
   sidebarWidth: 248,

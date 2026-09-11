@@ -1,4 +1,4 @@
-import { emptyCatalog, groupThreads } from "@domain/catalog";
+import { emptyCatalog } from "@domain/catalog";
 import { projectMessages, type ShelleyMessageRow } from "@domain/message";
 import { modelSwitchCommand } from "@domain/model";
 import { requireMachine } from "@domain/machine";
@@ -36,10 +36,6 @@ export class SessionHub {
 
   async loadAllCatalogs(): Promise<MachineCatalog[]> {
     return Promise.all(this.machines.map((machine) => this.loadCatalogFor(machine)));
-  }
-
-  async loadCatalog(machineId: MachineId): Promise<MachineCatalog> {
-    return this.loadCatalogFor(this.machine(machineId));
   }
 
   async listModels(machineId: MachineId): Promise<Model[]> {
@@ -112,7 +108,7 @@ export class SessionHub {
     try {
       const homeDir = await machineHomeDir(machine);
       const threads = await listMachineThreads(machine);
-      return groupThreads(machine, threads, homeDir);
+      return { machine, threads, loadError: null, homeDir };
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       return emptyCatalog(machine, message);

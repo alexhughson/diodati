@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { groupThreads, upsertThread } from "./catalog";
+import { groupThreads, replaceThread } from "./catalog";
 import type { Machine, Thread } from "@shared/types";
 
 const machine: Machine = {
@@ -9,9 +9,6 @@ const machine: Machine = {
   status: "running",
   sshDest: "alley-tablebase.exe.xyz",
   httpsUrl: "https://alley-tablebase.exe.xyz",
-  shelleyUrl: "https://alley-tablebase.shelley.exe.xyz",
-  terminalUrl: "https://alley-tablebase.xterm.exe.xyz",
-  proxyPort: 8000,
   ownership: "owned",
   canShell: true,
 };
@@ -30,37 +27,34 @@ function thread(partial: Partial<Thread> & Pick<Thread, "id">): Thread {
   };
 }
 
-test("one folder stays flat under the machine", () => {
-  const catalog = groupThreads(machine, [
+test("one folder stays a single group", () => {
+  const groups = groupThreads([
     thread({ id: "a", cwd: "/home/exedev/app" }),
     thread({ id: "b", cwd: "/home/exedev/app", updatedAt: "2026-09-11T13:00:00Z" }),
   ]);
-  expect(catalog.flattenFolders).toBe(true);
-  expect(catalog.groups.length).toBe(1);
-  expect(catalog.groups[0]?.folder.label).toBe("app");
-  expect(catalog.groups[0]?.threads.map((item) => item.id)).toEqual(["b", "a"]);
+  expect(groups.length).toBe(1);
+  expect(groups[0]?.cwd).toBe("/home/exedev/app");
+  expect(groups[0]?.threads.map((item) => item.id)).toEqual(["b", "a"]);
 });
 
-test("multiple folders become a sub-level", () => {
-  const catalog = groupThreads(machine, [
+test("multiple folders become separate groups", () => {
+  const groups = groupThreads([
     thread({ id: "a", cwd: "/home/exedev/app" }),
     thread({ id: "c", cwd: "/home/exedev/other" }),
   ]);
-  expect(catalog.flattenFolders).toBe(false);
-  expect(catalog.groups.map((group) => group.folder.label)).toEqual(["app", "other"]);
+  expect(groups.map((group) => group.cwd)).toEqual(["/home/exedev/app", "/home/exedev/other"]);
 });
 
 test("missing cwd uses a single no-folder group", () => {
-  const catalog = groupThreads(machine, [thread({ id: "a", cwd: null })]);
-  expect(catalog.flattenFolders).toBe(true);
-  expect(catalog.groups[0]?.folder.id).toBe("no-cwd");
+  const groups = groupThreads([thread({ id: "a", cwd: null })]);
+  expect(groups.length).toBe(1);
+  expect(groups[0]?.cwd).toBeNull();
 });
 
-test("upsertThread adds a draft to an empty catalog", () => {
-  const catalog = groupThreads(machine, []);
-  const next = upsertThread(
-    catalog,
+test("replaceThread adds a draft at the front", () => {
+  const next = replaceThread(
+    [],
     thread({ id: "draft-1", cwd: "/home/exedev/app", isDraft: true }),
   );
-  expect(next.groups[0]?.threads[0]?.id).toBe("draft-1");
+  expect(next[0]?.id).toBe("draft-1");
 });

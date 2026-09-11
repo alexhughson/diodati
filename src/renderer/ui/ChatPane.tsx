@@ -35,7 +35,7 @@ export function ChatPane(props: Props) {
     node.scrollTop = node.scrollHeight;
   }, [props.messages, props.liveDelta]);
 
-  const title = props.thread ? threadTitle(props.thread) : props.composing ? "New thread" : "Exevibe";
+  const title = props.thread ? threadTitle(props.thread) : props.composing ? "New thread" : "Diodati";
   const cwd = props.thread?.cwd ?? props.draftCwd;
   const subtitle = props.machineName
     ? `${props.machineName} · ${displayFolder(cwd, props.homeDir)}`

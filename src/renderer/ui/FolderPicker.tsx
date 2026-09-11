@@ -1,17 +1,13 @@
 import { useEffect, useState } from "react";
+import type { FolderChoice } from "@domain/catalog";
 import { displayFolder } from "@domain/thread";
 import { joinDir, parentDir } from "@domain/remotePath";
 import { Pop } from "./Pop";
 
-type Choice = {
-  cwd: string;
-  label: string;
-};
-
 type Props = {
   machineId: string;
   homeDir: string | null;
-  choices: Choice[];
+  choices: FolderChoice[];
   cwd: string | null;
   onCwd: (cwd: string) => void;
 };
@@ -34,7 +30,7 @@ export function FolderPicker(props: Props) {
     let alive = true;
     setLoading(true);
     setError(null);
-    void window.exevibe
+    void window.diodati
       .listRemoteDirs(props.machineId, browsePath)
       .then((dirs) => {
         if (!alive) {
@@ -67,7 +63,7 @@ export function FolderPicker(props: Props) {
       return;
     }
     try {
-      const created = await window.exevibe.createRemoteDir(props.machineId, joinDir(browsePath, name));
+      const created = await window.diodati.createRemoteDir(props.machineId, joinDir(browsePath, name));
       setCreateName("");
       setBrowsePath(created);
     } catch (err) {

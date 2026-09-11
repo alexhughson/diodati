@@ -21,12 +21,12 @@ export function PreviewPane(props: Props) {
   useEffect(() => {
     const node = fillRef.current;
     if (!node || !props.visible || props.suspendEmbed) {
-      void window.exevibe.setPreviewBounds(null);
+      void window.diodati.setPreviewBounds(null);
       return;
     }
     const report = () => {
       const rect = node.getBoundingClientRect();
-      void window.exevibe.setPreviewBounds({
+      void window.diodati.setPreviewBounds({
         x: Math.round(rect.x),
         y: Math.round(rect.y),
         width: Math.round(rect.width),

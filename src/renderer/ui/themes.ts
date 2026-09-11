@@ -14,7 +14,7 @@ export const themes: Theme[] = [
   { id: "pebble", label: "Pebble" },
 ];
 
-const STORAGE_KEY = "exevibe.theme";
+const STORAGE_KEY = "diodati.theme";
 
 function isThemeId(value: string): value is ThemeId {
   return themes.some((theme) => theme.id === value);

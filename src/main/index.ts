@@ -1,8 +1,34 @@
-import { app, BrowserWindow, ipcMain } from "electron";
+import { app, BrowserWindow, ipcMain, nativeImage } from "electron";
+import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { attachPreview, openExternal, previewLoggedIn, watchPreviewLogin, type PreviewController } from "./preview";
 import { SessionHub } from "./sessionHub";
 import { SshTerminal } from "./sshTerminal";
+
+function resourceIcon(name: string): string {
+  const path = join(__dirname, "../../resources", name);
+  if (!existsSync(path)) {
+    throw new Error(`missing app icon: ${path}`);
+  }
+  return path;
+}
+
+function applyAppIcon(window: BrowserWindow): void {
+  const square = nativeImage.createFromPath(resourceIcon("icon.png"));
+  if (square.isEmpty()) {
+    throw new Error(`app icon failed to load: ${resourceIcon("icon.png")}`);
+  }
+  if (process.platform !== "darwin") {
+    window.setIcon(square);
+  }
+  if (app.dock) {
+    const dock = nativeImage.createFromPath(resourceIcon("icon-dock.png"));
+    if (dock.isEmpty()) {
+      throw new Error(`dock icon failed to load: ${resourceIcon("icon-dock.png")}`);
+    }
+    app.dock.setIcon(dock);
+  }
+}
 
 function createWindow(): void {
   const window = new BrowserWindow({
@@ -14,6 +40,7 @@ function createWindow(): void {
     titleBarStyle: "hiddenInset",
     roundedCorners: true,
     trafficLightPosition: { x: 16, y: 16 },
+    icon: resourceIcon("icon.png"),
     webPreferences: {
       preload: join(__dirname, "../preload/index.cjs"),
       contextIsolation: true,
@@ -51,6 +78,8 @@ function createWindow(): void {
     preview.destroy();
   });
 
+  applyAppIcon(window);
+
   if (process.env.ELECTRON_RENDERER_URL) {
     void window.loadURL(process.env.ELECTRON_RENDERER_URL);
   } else {
@@ -61,7 +90,6 @@ function createWindow(): void {
 function bindIpc(hub: SessionHub, preview: PreviewController, terminal: SshTerminal): void {
   ipcMain.removeHandler("machines.list");
   ipcMain.removeHandler("catalogs.loadAll");
-  ipcMain.removeHandler("catalog.load");
   ipcMain.removeHandler("models.list");
   ipcMain.removeHandler("thread.open");
   ipcMain.removeHandler("thread.createDraft");
@@ -82,7 +110,6 @@ function bindIpc(hub: SessionHub, preview: PreviewController, terminal: SshTermi
 
   ipcMain.handle("machines.list", () => hub.listMachines());
   ipcMain.handle("catalogs.loadAll", () => hub.loadAllCatalogs());
-  ipcMain.handle("catalog.load", (_event, machineId: string) => hub.loadCatalog(machineId));
   ipcMain.handle("models.list", (_event, machineId: string) => hub.listModels(machineId));
   ipcMain.handle("thread.open", (_event, machineId: string, threadId: string) => hub.openThread(machineId, threadId));
   ipcMain.handle("thread.createDraft", (_event, machineId: string, options) => hub.createDraft(machineId, options));
@@ -123,6 +150,7 @@ function bindIpc(hub: SessionHub, preview: PreviewController, terminal: SshTermi
 }
 
 app.whenReady().then(() => {
+  app.setName("Diodati");
   createWindow();
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) {

@@ -1,0 +1,54 @@
+name: macOS
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+permissions:
+  contents: write
+
+jobs:
+  package:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - run: bun install
+      - run: bun test src/domain
+      - name: Package Diodati.app
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: false
+        run: bun run package:mac
+      - name: Check the app name
+        run: |
+          plist=release/mac-arm64/Diodati.app/Contents/Info.plist
+          if [ ! -f "$plist" ]; then
+            plist=release/mac/Diodati.app/Contents/Info.plist
+          fi
+          name=$(plutil -extract CFBundleName raw "$plist")
+          display=$(plutil -extract CFBundleDisplayName raw "$plist")
+          exec_name=$(plutil -extract CFBundleExecutable raw "$plist")
+          echo "CFBundleName=$name"
+          echo "CFBundleDisplayName=$display"
+          echo "CFBundleExecutable=$exec_name"
+          test "$name" = "Diodati"
+          test "$display" = "Diodati"
+          test "$exec_name" = "Diodati"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Diodati-macOS
+          path: release/Diodati-macOS.zip
+          if-no-files-found: error
+      - name: Publish download
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: macos
+          name: Diodati for macOS
+          make_latest: true
+          files: release/Diodati-macOS.zip
+          body: Unsigned Apple Silicon build. Right-click Open the first time, or run `xattr -cr Diodati.app`.

@@ -21,7 +21,7 @@ test("createDemoMachine adds a named machine and rejects a duplicate", () => {
 
 test("demo scene thread has a user turn, a thought, a tool, and a reply", () => {
   const thread = demoThread(DEMO_SCENE.machineId, DEMO_SCENE.threadId);
-  expect(thread.slug).toBe("why-the-beacon-flashes");
+  expect(thread.slug).toBe("watch-the-beacon");
   const messages = demoMessages(thread.id);
   expect(messages[0]?.role).toBe("user");
   expect(messages[1]?.blocks.map((block) => block.kind)).toEqual(["thinking", "tool", "text"]);

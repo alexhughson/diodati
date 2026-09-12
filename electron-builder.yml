@@ -1,0 +1,26 @@
+appId: app.diodati.desktop
+productName: Diodati
+executableName: Diodati
+directories:
+  output: release
+  buildResources: resources
+files:
+  - out/**/*
+  - package.json
+  - resources/**/*
+asarUnpack:
+  - "**/*.node"
+  - "**/node-pty/**"
+mac:
+  category: public.app-category.developer-tools
+  icon: resources/icon.png
+  identity: null
+  artifactName: Diodati-macOS.zip
+  target:
+    - target: zip
+      arch:
+        - arm64
+  extendInfo:
+    CFBundleName: Diodati
+    CFBundleDisplayName: Diodati
+    CFBundleIdentifier: app.diodati.desktop

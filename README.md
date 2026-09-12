@@ -1,15 +1,21 @@
 # Diodati
 
+Diodati is a tool to manage Shelley conversations across your exe.dev machines.
+
+It uses the SSH keys already on this computer. You do not set up extra sign-in.
+
 ![Diodati lists sample machines and a Shelley thread](docs/interface.png)
 
-Desktop client for exe.dev machines and the Shelley agent on each machine.
+## Download
 
-Diodati lists machines with `ssh exe.dev ls --json`. It drives Shelley through SSH, using the keys already on this computer.
+[Download Diodati for macOS](https://github.com/alexhughson/diodati/releases/latest/download/Diodati-macOS.zip)
 
-```
-bun install
-bun test
-bun run dev
-```
+This is an early, unsigned Apple Silicon build. After unzip, right-click Open.
 
-`bun run demo` opens the sample window above. It does not call SSH.
+You need macOS on Apple Silicon, an exe.dev account, and an SSH key that exe.dev already accepts.
+
+## What you can do
+
+- See the exe.dev machines this computer can reach
+- Open Shelley conversations and keep talking
+- Start a new machine without leaving the app

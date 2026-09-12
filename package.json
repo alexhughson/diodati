@@ -10,6 +10,7 @@
     "demo": "electron-vite dev -- --demo",
     "screenshot": "electron-vite build && electron . --demo --screenshot",
     "build": "electron-vite build",
+    "package:mac": "electron-vite build && CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --mac --arm64 --publish never",
     "test": "bun test src/domain"
   },
   "dependencies": {
@@ -26,6 +27,7 @@
     "@types/react-dom": "^19.1.9",
     "@vitejs/plugin-react": "^5.0.2",
     "electron": "^37.3.1",
+    "electron-builder": "^26.15.3",
     "electron-vite": "^4.0.0",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",

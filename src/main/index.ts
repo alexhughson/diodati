@@ -180,8 +180,9 @@ function bindIpc(hub: SessionHub, preview: PreviewController, terminal: SshTermi
   });
 }
 
+app.setName("Diodati");
+
 app.whenReady().then(() => {
-  app.setName("Diodati");
   createWindow();
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) {

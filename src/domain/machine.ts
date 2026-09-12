@@ -71,6 +71,33 @@ export function machinesFromLs(payload: ExeLsJson): Machine[] {
   return reachable.sort((left, right) => left.name.localeCompare(right.name));
 }
 
+const VM_NAME = /^[a-z][a-z0-9-]{0,62}$/;
+
+export function exeVmName(name: string): string {
+  const trimmed = name.trim();
+  if (!VM_NAME.test(trimmed)) {
+    throw new Error("machine name must be a lowercase letter, then letters, digits, or hyphens");
+  }
+  return trimmed;
+}
+
+export function exeNewArgs(name: string | null): string[] {
+  const args = ["new", "--json", "--no-email"];
+  if (name === null || name.trim().length === 0) {
+    return args;
+  }
+  args.push(`--name=${exeVmName(name)}`);
+  return args;
+}
+
+export function machineFromNewJson(stdout: string): Machine {
+  const payload = JSON.parse(stdout) as ExeVmRow;
+  if (!payload || typeof payload !== "object" || typeof payload.vm_name !== "string") {
+    throw new Error(`exe.dev new --json did not return vm_name: ${stdout.trim()}`);
+  }
+  return machineFromRow(payload, "owned");
+}
+
 export function requireMachine(machines: Machine[], machineId: MachineId): Machine {
   const found = machines.find((machine) => machine.id === machineId);
   if (!found) {

@@ -7,6 +7,8 @@
   "type": "module",
   "scripts": {
     "dev": "electron-vite dev",
+    "demo": "electron-vite dev -- --demo",
+    "screenshot": "electron-vite build && electron . --demo --screenshot",
     "build": "electron-vite build",
     "test": "bun test src/domain"
   },

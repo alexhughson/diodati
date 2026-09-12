@@ -27,6 +27,7 @@ export type StreamEvent =
 
 export type IpcApi = {
   listMachines: () => Promise<Machine[]>;
+  createMachine: (name: string | null) => Promise<Machine>;
   loadAllCatalogs: () => Promise<MachineCatalog[]>;
   listModels: (machineId: MachineId) => Promise<Model[]>;
   openThread: (machineId: MachineId, threadId: ThreadId) => Promise<ThreadOpened>;
@@ -48,4 +49,6 @@ export type IpcApi = {
   onStream: (handler: (event: StreamEvent) => void) => () => void;
   listRemoteDirs: (machineId: MachineId, dir: string) => Promise<string[]>;
   createRemoteDir: (machineId: MachineId, dir: string) => Promise<string>;
+  demoScene: () => Promise<{ machineId: string; threadId: string } | null>;
+  demoReady: () => Promise<void>;
 };

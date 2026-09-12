@@ -1,10 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { folderChoices, upsertThreadInCatalogs } from "@domain/catalog";
+import { classifyExeConnectError, firstErrorLine, type ExeConnectKind } from "@domain/exeConnect";
 import { defaultModel } from "@domain/model";
 import type { MachineCatalog, Model, ProjectedMessage, ReasoningLevel, Thread } from "@shared/types";
 import { ChatPane } from "./ui/ChatPane";
 import { Composer } from "./ui/Composer";
 import { PreviewPane } from "./ui/PreviewPane";
+import { ExeConnectPage } from "./ui/ExeConnectPage";
+import { NewMachinePage } from "./ui/NewMachinePage";
 import { SettingsPage } from "./ui/SettingsPage";
 import { Sidebar } from "./ui/Sidebar";
 import { TerminalPane } from "./ui/TerminalPane";
@@ -36,6 +39,9 @@ export function App() {
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewLoggedIn, setPreviewLoggedIn] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [createMachineOpen, setCreateMachineOpen] = useState(false);
+  const [connectKind, setConnectKind] = useState<ExeConnectKind | null>(null);
+  const [connectMessage, setConnectMessage] = useState<string | null>(null);
   const [terminalOpen, setTerminalOpen] = useState(false);
   const [openedTerminalIds, setOpenedTerminalIds] = useState<string[]>([]);
   const [loadingMachines, setLoadingMachines] = useState(true);
@@ -65,24 +71,72 @@ export function App() {
     setLayout(readLayoutSizes());
   }, []);
 
-  const refreshMachines = async () => {
+  const refreshMachines = async (): Promise<MachineCatalog[]> => {
     setLoadingMachines(true);
     try {
       await window.diodati.listMachines();
       const nextCatalogs = await window.diodati.loadAllCatalogs();
       setCatalogs(nextCatalogs);
+      setConnectKind(null);
+      setConnectMessage(null);
       if (selectedMachineId && !nextCatalogs.some((catalog) => catalog.machine.id === selectedMachineId)) {
         resetChat();
         setSelectedMachineId(null);
       }
+      setLoadingMachines(false);
+      return nextCatalogs;
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      const message = firstErrorLine(err instanceof Error ? err.message : String(err));
+      setCatalogs([]);
+      setConnectKind(classifyExeConnectError(message));
+      setConnectMessage(message);
+      setLoadingMachines(false);
+      return [];
     }
-    setLoadingMachines(false);
   };
 
   useEffect(() => {
-    void refreshMachines();
+    let cancelled = false;
+    const boot = async () => {
+      const scene = await window.diodati.demoScene();
+      if (cancelled) {
+        return;
+      }
+      if (scene) {
+        document.documentElement.dataset.theme = "paper";
+        setTheme("paper");
+        setTerminalDock("bottom");
+        setLayout(defaultLayoutSizes);
+      }
+      const nextCatalogs = await refreshMachines();
+      if (cancelled || !scene) {
+        return;
+      }
+      const catalog = nextCatalogs.find((item) => item.machine.id === scene.machineId);
+      const item = catalog?.threads.find((entry) => entry.id === scene.threadId);
+      if (!item) {
+        throw new Error(`demo scene thread missing: ${scene.machineId} ${scene.threadId}`);
+      }
+      await selectThread(item, nextCatalogs);
+      if (cancelled) {
+        return;
+      }
+      if (document.fonts) {
+        await document.fonts.ready;
+      }
+      await new Promise<void>((resolve) => {
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            resolve();
+          });
+        });
+      });
+      await window.diodati.demoReady();
+    };
+    void boot();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
@@ -194,8 +248,8 @@ export function App() {
     setComposing(false);
   };
 
-  const defaultCwd = (machineId: string): string | null => {
-    const catalog = catalogs.find((item) => item.machine.id === machineId);
+  const defaultCwd = (machineId: string, source: MachineCatalog[] = catalogs): string | null => {
+    const catalog = source.find((item) => item.machine.id === machineId);
     if (!catalog) {
       return null;
     }
@@ -207,8 +261,8 @@ export function App() {
     return catalog.homeDir;
   };
 
-  const ensureModels = async (machineId: string) => {
-    const machine = catalogs.find((item) => item.machine.id === machineId)?.machine;
+  const ensureModels = async (machineId: string, source: MachineCatalog[] = catalogs) => {
+    const machine = source.find((item) => item.machine.id === machineId)?.machine;
     if (!machine || !machine.canShell) {
       setModels([]);
       return;
@@ -232,13 +286,26 @@ export function App() {
     }
   };
 
-  const selectMachine = async (machineId: string) => {
+  const selectMachine = async (machineId: string, source: MachineCatalog[] = catalogs) => {
     if (machineId !== selectedMachineId) {
       resetChat();
-      setDraftCwd(defaultCwd(machineId));
+      setDraftCwd(defaultCwd(machineId, source));
     }
     setSelectedMachineId(machineId);
-    await ensureModels(machineId);
+    await ensureModels(machineId, source);
+  };
+
+  const createMachine = async (name: string | null) => {
+    setError(null);
+    const created = await window.diodati.createMachine(name);
+    const nextCatalogs = await refreshMachines();
+    setCreateMachineOpen(false);
+    await selectMachine(created.id, nextCatalogs);
+  };
+
+  const closeCenterPages = () => {
+    setSettingsOpen(false);
+    setCreateMachineOpen(false);
   };
 
   const beginNewThread = async (machineId: string) => {
@@ -249,7 +316,7 @@ export function App() {
     await ensureModels(machineId);
   };
 
-  const selectThread = async (next: Thread) => {
+  const selectThread = async (next: Thread, source: MachineCatalog[] = catalogs) => {
     setError(null);
     setComposing(false);
     setSelectedMachineId(next.machineId);
@@ -263,7 +330,7 @@ export function App() {
       setDraftCwd(next.cwd);
     }
     try {
-      await ensureModels(next.machineId);
+      await ensureModels(next.machineId, source);
       const opened = await window.diodati.openThread(next.machineId, next.id);
       setThread(opened.thread);
       setMessages(opened.messages);
@@ -348,6 +415,14 @@ export function App() {
     }
   }
 
+  let connectHint: string | null = null;
+  if (connectKind === "needs-key") {
+    connectHint = "no exe.dev key on this computer";
+  } else if (connectKind === "other") {
+    connectHint = "could not list machines";
+  }
+  const showConnect = Boolean(connectKind) && catalogs.length === 0 && !settingsOpen && !createMachineOpen;
+
   return (
     <div
       className={appClass}
@@ -361,11 +436,20 @@ export function App() {
       <Sidebar
         catalogs={catalogs}
         loadingMachines={loadingMachines}
+        connectHint={connectHint}
         selectedMachineId={selectedMachineId}
         selectedThreadId={thread?.id ?? null}
         settingsOpen={settingsOpen}
+        createMachineOpen={createMachineOpen}
         terminalOpen={terminalOpen}
-        onOpenSettings={() => setSettingsOpen((open) => !open)}
+        onOpenSettings={() => {
+          setCreateMachineOpen(false);
+          setSettingsOpen((open) => !open);
+        }}
+        onOpenCreateMachine={() => {
+          setSettingsOpen(false);
+          setCreateMachineOpen((open) => !open);
+        }}
         width={layout.sidebarWidth}
         onResizeStart={() => layout.sidebarWidth}
         onResize={(width) => {
@@ -384,15 +468,15 @@ export function App() {
         }}
         onRefreshMachines={() => void refreshMachines()}
         onSelectMachine={(id) => {
-          setSettingsOpen(false);
+          closeCenterPages();
           void selectMachine(id);
         }}
         onSelectThread={(item) => {
-          setSettingsOpen(false);
+          closeCenterPages();
           void selectThread(item);
         }}
         onNewThread={(id) => {
-          setSettingsOpen(false);
+          closeCenterPages();
           void beginNewThread(id);
         }}
         onOpenTerminal={(id) => toggleTerminal(id)}
@@ -407,7 +491,21 @@ export function App() {
             onClose={() => setSettingsOpen(false)}
           />
         ) : null}
-        {settingsOpen ? null : (
+        {createMachineOpen ? (
+          <NewMachinePage onCreate={createMachine} onClose={() => setCreateMachineOpen(false)} />
+        ) : null}
+        {showConnect && connectKind ? (
+          <ExeConnectPage
+            kind={connectKind}
+            message={connectMessage ?? ""}
+            onRescan={() => void refreshMachines()}
+            rescanning={loadingMachines}
+            onOpenSite={() => {
+              void window.diodati.openExternal("https://exe.dev/user");
+            }}
+          />
+        ) : null}
+        {settingsOpen || createMachineOpen || showConnect || (loadingMachines && catalogs.length === 0) ? null : (
           <>
             <ChatPane
               machineName={selectedMachine?.name ?? null}

@@ -4,6 +4,7 @@ import type { ComposerOptions, MachineId, ThreadId } from "@shared/types";
 
 const api: IpcApi = {
   listMachines: () => ipcRenderer.invoke("machines.list"),
+  createMachine: (name: string | null) => ipcRenderer.invoke("machines.create", name),
   loadAllCatalogs: () => ipcRenderer.invoke("catalogs.loadAll"),
   listModels: (machineId: MachineId) => ipcRenderer.invoke("models.list", machineId),
   openThread: (machineId: MachineId, threadId: ThreadId) => ipcRenderer.invoke("thread.open", machineId, threadId),
@@ -50,6 +51,8 @@ const api: IpcApi = {
   openExternal: (url: string) => ipcRenderer.invoke("preview.openExternal", url),
   listRemoteDirs: (machineId: MachineId, dir: string) => ipcRenderer.invoke("fs.listDirs", machineId, dir),
   createRemoteDir: (machineId: MachineId, dir: string) => ipcRenderer.invoke("fs.createDir", machineId, dir),
+  demoScene: () => ipcRenderer.invoke("demo.scene"),
+  demoReady: () => ipcRenderer.invoke("demo.ready"),
   onStream: (handler: (event: StreamEvent) => void) => {
     const listener = (_event: unknown, payload: StreamEvent) => {
       handler(payload);

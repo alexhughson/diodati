@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { machinesFromLs, parseSshDest } from "./machine";
+import { exeNewArgs, exeVmName, machineFromNewJson, machinesFromLs, parseSshDest } from "./machine";
 
 test("owned rows keep ssh_dest", () => {
   expect(parseSshDest({ vm_name: "alley-tablebase", ssh_dest: "alley-tablebase.exe.xyz" })).toBe("alley-tablebase.exe.xyz");
@@ -19,6 +19,37 @@ test("machinesFromLs prefers owned over shared duplicates", () => {
   expect(machines.length).toBe(1);
   expect(machines[0]?.ownership).toBe("owned");
   expect(machines[0]?.canShell).toBe(true);
+});
+
+test("exeNewArgs omits --name when the name is empty", () => {
+  expect(exeNewArgs(null)).toEqual(["new", "--json", "--no-email"]);
+  expect(exeNewArgs("  ")).toEqual(["new", "--json", "--no-email"]);
+  expect(exeNewArgs("villa-diodati")).toEqual(["new", "--json", "--no-email", "--name=villa-diodati"]);
+});
+
+test("exeVmName rejects names that are not a dns label", () => {
+  expect(() => exeVmName("Villa")).toThrow("machine name");
+  expect(() => exeVmName("foo bar")).toThrow("machine name");
+  expect(() => exeVmName("--help")).toThrow("machine name");
+});
+
+test("machineFromNewJson reads a top-level vm row", () => {
+  const machine = machineFromNewJson(
+    JSON.stringify({
+      vm_name: "byron-cabin",
+      ssh_dest: "byron-cabin.exe.xyz",
+      https_url: "https://byron-cabin.exe.xyz",
+      status: "running",
+      access: { shell: true },
+    }),
+  );
+  expect(machine.id).toBe("byron-cabin");
+  expect(machine.sshDest).toBe("byron-cabin.exe.xyz");
+  expect(machine.canShell).toBe(true);
+});
+
+test("machineFromNewJson throws when vm_name is missing", () => {
+  expect(() => machineFromNewJson(JSON.stringify({ ssh_dest: "x.exe.xyz" }))).toThrow("vm_name");
 });
 
 test("machinesFromLs drops rows without shell access", () => {

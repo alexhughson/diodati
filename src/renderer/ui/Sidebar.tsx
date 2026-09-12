@@ -2,14 +2,17 @@ import { groupThreads } from "@domain/catalog";
 import { displayFolder } from "@domain/thread";
 import { threadTitle } from "@domain/thread";
 import type { MachineCatalog, Thread } from "@shared/types";
-import { ComposeIcon, RefreshIcon, TerminalIcon } from "./icons";
+import { ComposeIcon, PlusIcon, RefreshIcon, TerminalIcon } from "./icons";
 import { Splitter } from "./Splitter";
 
 type Props = {
   catalogs: MachineCatalog[];
   loadingMachines: boolean;
+  connectHint: string | null;
   settingsOpen: boolean;
+  createMachineOpen: boolean;
   onOpenSettings: () => void;
+  onOpenCreateMachine: () => void;
   selectedMachineId: string | null;
   selectedThreadId: string | null;
   onSelectMachine: (machineId: string) => void;
@@ -31,6 +34,14 @@ export function Sidebar(props: Props) {
       <div className="brand">
         <h1>Diodati</h1>
         <div className="brand-actions">
+        <button
+          className={props.createMachineOpen ? "icon-btn active" : "icon-btn"}
+          title="new machine"
+          disabled={props.loadingMachines || Boolean(props.connectHint)}
+          onClick={props.onOpenCreateMachine}
+        >
+          <PlusIcon />
+        </button>
         <button
           className="icon-btn"
           title="rescan machines"
@@ -55,6 +66,9 @@ export function Sidebar(props: Props) {
       </div>
       <div className="machine-list">
         {props.loadingMachines && props.catalogs.length === 0 ? <div className="empty">reading machines…</div> : null}
+        {!props.loadingMachines && props.catalogs.length === 0 && props.connectHint ? (
+          <div className="empty">{props.connectHint}</div>
+        ) : null}
         {props.catalogs.map((catalog) => (
           <MachineBlock
             key={catalog.machine.id}

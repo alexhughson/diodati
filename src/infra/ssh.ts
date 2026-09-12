@@ -106,7 +106,7 @@ export function runSsh(dest: string, remoteCommand: string, options?: { stdin?: 
   return spawnSsh(args, options);
 }
 
-export function runExeApi(apiArgs: string[]): Promise<SshResult> {
+export function runExeApi(apiArgs: string[], options?: { timeoutMs?: number }): Promise<SshResult> {
   ensureExeHostKnown("exe.dev");
   const args = [
     "-o",
@@ -116,7 +116,7 @@ export function runExeApi(apiArgs: string[]): Promise<SshResult> {
     "exe.dev",
     ...apiArgs,
   ];
-  return spawnSsh(args);
+  return spawnSsh(args, options);
 }
 
 export function interactiveSshArgs(dest: string): string[] {

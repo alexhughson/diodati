@@ -1,39 +1,40 @@
 :root,
 [data-theme="paper"] {
+  /* Villa Diodati wall / stone / shutter. Colormind UI + ColorAPI light ramps. */
   color-scheme: light;
-  --bg: #f4f4f4;
-  --bg-sidebar: #ececee;
-  --bg-panel: #ffffff;
-  --bg-elev: #e4e6e6;
-  --bg-input: #ffffff;
-  --border: #cfd3d2;
-  --text: #392e3c;
-  --muted: #7a7d77;
-  --faint: #9aa09c;
-  --accent: #4f7d82;
-  --accent-dim: #d7e4e6;
-  --user: #dce8ea;
-  --agent: #ffffff;
+  --bg: #f0e9db;
+  --bg-sidebar: #e0d3b8;
+  --bg-panel: #faf6ee;
+  --bg-elev: #d4c7ae;
+  --bg-input: #faf6ee;
+  --border: #c9bdaa;
+  --text: #363637;
+  --muted: #6a6560;
+  --faint: #8f877c;
+  --accent: #415558;
+  --accent-dim: #c5d4d0;
+  --user: #e8dfd0;
+  --agent: #faf6ee;
   --danger: #b64b4b;
-  --ok: #4f7d82;
-  --shadow: 0 10px 24px rgba(57, 46, 60, 0.08);
+  --ok: #415558;
+  --shadow: 0 10px 24px rgba(54, 54, 55, 0.08);
   --radius: 3px;
-  --term-black: #392e3c;
+  --term-black: #363637;
   --term-red: #b64b4b;
-  --term-green: #4f7d82;
-  --term-yellow: #a8884a;
-  --term-blue: #4f7d82;
-  --term-magenta: #7a5a72;
-  --term-cyan: #5c9196;
-  --term-white: #cfd3d2;
-  --term-bright-black: #7a7d77;
+  --term-green: #415558;
+  --term-yellow: #c4b089;
+  --term-blue: #415558;
+  --term-magenta: #6a6560;
+  --term-cyan: #5a7a7f;
+  --term-white: #c9bdaa;
+  --term-bright-black: #6a6560;
   --term-bright-red: #c45c5c;
-  --term-bright-green: #5c9196;
-  --term-bright-yellow: #c4a06a;
-  --term-bright-blue: #6a9aa0;
-  --term-bright-magenta: #9a7a90;
-  --term-bright-cyan: #6aa3a8;
-  --term-bright-white: #392e3c;
+  --term-bright-green: #82938c;
+  --term-bright-yellow: #d0bc95;
+  --term-bright-blue: #5a7a7f;
+  --term-bright-magenta: #8f877c;
+  --term-bright-cyan: #82938c;
+  --term-bright-white: #363637;
 }
 
 [data-theme="bloom"] {
@@ -315,7 +316,7 @@ button {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 8px 10px;
+  padding: 0 8px 10px 16px;
 }
 
 .brand h1 {
@@ -371,6 +372,36 @@ button {
   font-size: 12px;
 }
 
+.machine-form {
+  max-width: 480px;
+}
+
+.machine-form input {
+  width: 100%;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 8px 10px;
+}
+
+.machine-form-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.command {
+  margin: 0 0 8px;
+  padding: 10px 12px;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 13px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  user-select: text;
+}
+
 .dock-switch {
   display: flex;
   gap: 6px;
@@ -397,8 +428,8 @@ button {
 }
 
 .theme-dot.paper {
-  background: #f4f4f4;
-  border-color: #392e3c;
+  background: #f0e9db;
+  border-color: #415558;
 }
 
 .theme-dot.bloom {
@@ -417,23 +448,14 @@ button {
 .machine-list {
   overflow: auto;
   flex: 1;
-  padding-left: 8px;
+  padding: 0 8px 0 16px;
   background: var(--bg-sidebar);
-  scrollbar-width: thin;
-  scrollbar-color: var(--muted) var(--bg-sidebar);
+  scrollbar-width: none;
 }
 
 .machine-list::-webkit-scrollbar {
-  width: 8px;
-}
-
-.machine-list::-webkit-scrollbar-track {
-  background: var(--bg-sidebar);
-}
-
-.machine-list::-webkit-scrollbar-thumb {
-  background: var(--muted);
-  border-radius: 4px;
+  width: 0;
+  height: 0;
 }
 
 .machine-block {
@@ -457,7 +479,7 @@ button {
   display: flex;
   gap: 6px;
   align-items: center;
-  padding: 4px 6px;
+  padding: 4px 0;
   color: var(--muted);
 }
 
@@ -999,6 +1021,7 @@ button {
 
 .pop-custom {
   display: flex;
+  flex-wrap: wrap;
   gap: 6px;
   padding: 6px;
 }

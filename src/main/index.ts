@@ -1,9 +1,17 @@
 import { app, BrowserWindow, ipcMain, nativeImage } from "electron";
-import { existsSync } from "node:fs";
+import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { attachPreview, openExternal, previewLoggedIn, watchPreviewLogin, type PreviewController } from "./preview";
 import { SessionHub } from "./sessionHub";
 import { SshTerminal } from "./sshTerminal";
+
+function wantsDemo(): boolean {
+  return process.argv.includes("--demo") || process.argv.includes("--screenshot");
+}
+
+function wantsScreenshot(): boolean {
+  return process.argv.includes("--screenshot");
+}
 
 function resourceIcon(name: string): string {
   const path = join(__dirname, "../../resources", name);
@@ -32,8 +40,8 @@ function applyAppIcon(window: BrowserWindow): void {
 
 function createWindow(): void {
   const window = new BrowserWindow({
-    width: 1440,
-    height: 920,
+    width: wantsScreenshot() ? 1280 : 1440,
+    height: wantsScreenshot() ? 760 : 920,
     minWidth: 960,
     minHeight: 640,
     backgroundColor: "#f4f4f4",
@@ -61,7 +69,7 @@ function createWindow(): void {
   });
   const hub = new SessionHub((event) => {
     send("shelley:event", event);
-  });
+  }, wantsDemo());
   bindIpc(hub, preview, terminal);
   const stopAuthWatch = watchPreviewLogin((loggedIn) => {
     send("auth:preview", loggedIn);
@@ -89,6 +97,7 @@ function createWindow(): void {
 
 function bindIpc(hub: SessionHub, preview: PreviewController, terminal: SshTerminal): void {
   ipcMain.removeHandler("machines.list");
+  ipcMain.removeHandler("machines.create");
   ipcMain.removeHandler("catalogs.loadAll");
   ipcMain.removeHandler("models.list");
   ipcMain.removeHandler("thread.open");
@@ -107,8 +116,11 @@ function bindIpc(hub: SessionHub, preview: PreviewController, terminal: SshTermi
   ipcMain.removeHandler("preview.openExternal");
   ipcMain.removeHandler("fs.listDirs");
   ipcMain.removeHandler("fs.createDir");
+  ipcMain.removeHandler("demo.scene");
+  ipcMain.removeHandler("demo.ready");
 
   ipcMain.handle("machines.list", () => hub.listMachines());
+  ipcMain.handle("machines.create", (_event, name: string | null) => hub.createMachine(name));
   ipcMain.handle("catalogs.loadAll", () => hub.loadAllCatalogs());
   ipcMain.handle("models.list", (_event, machineId: string) => hub.listModels(machineId));
   ipcMain.handle("thread.open", (_event, machineId: string, threadId: string) => hub.openThread(machineId, threadId));
@@ -147,6 +159,25 @@ function bindIpc(hub: SessionHub, preview: PreviewController, terminal: SshTermi
   ipcMain.handle("preview.openExternal", (_event, url: string) => openExternal(url));
   ipcMain.handle("fs.listDirs", (_event, machineId: string, dir: string) => hub.listDirs(machineId, dir));
   ipcMain.handle("fs.createDir", (_event, machineId: string, dir: string) => hub.createDir(machineId, dir));
+  ipcMain.handle("demo.scene", () => hub.demoScene());
+  ipcMain.handle("demo.ready", async (event) => {
+    if (!wantsScreenshot()) {
+      return;
+    }
+    const window = BrowserWindow.fromWebContents(event.sender);
+    if (!window) {
+      throw new Error("demo.ready: no window");
+    }
+    await new Promise<void>((resolve) => {
+      setTimeout(resolve, 400);
+    });
+    const png = await window.webContents.capturePage();
+    const dest = join(__dirname, "../../docs/interface.png");
+    mkdirSync(join(__dirname, "../../docs"), { recursive: true });
+    writeFileSync(dest, png.toPNG());
+    process.stdout.write(`wrote ${dest}\n`);
+    app.quit();
+  });
 }
 
 app.whenReady().then(() => {

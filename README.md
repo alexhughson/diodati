@@ -1,10 +1,10 @@
 # Diodati
 
-Desktop client for exe.dev machines and the Shelley agent that runs on each machine.
+![Diodati lists sample machines and a Shelley thread](docs/interface.png)
 
-The app lists machines with `ssh exe.dev ls --json`. It lists and drives Shelley threads through SSH to that machine's Shelley unix socket. It uses the SSH keys already on this computer.
+Desktop client for exe.dev machines and the Shelley agent on each machine.
 
-## Run
+Diodati lists machines with `ssh exe.dev ls --json`. It drives Shelley through SSH, using the keys already on this computer.
 
 ```
 bun install
@@ -12,8 +12,4 @@ bun test
 bun run dev
 ```
 
-## Layout
-
-- Left: machine, then folder when a machine has more than one working directory, then Shelley threads.
-- Center: thread and model picker. Model lists come from that machine's Shelley.
-- Right: the machine website at `https_url`. Use **log in** if the site asks for an exe.dev session.
+`bun run demo` opens the sample window above. It does not call SSH.

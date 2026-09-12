@@ -1,4 +1,4 @@
-import { machinesFromLs, type ExeLsJson } from "@domain/machine";
+import { exeNewArgs, machineFromNewJson, machinesFromLs, type ExeLsJson } from "@domain/machine";
 import type { Machine } from "@shared/types";
 import { requireOk, runExeApi } from "./ssh";
 
@@ -7,6 +7,13 @@ export async function listExeMachines(): Promise<Machine[]> {
   const stdout = requireOk(result, "ssh exe.dev ls --json");
   const payload = JSON.parse(stdout) as ExeLsJson;
   return machinesFromLs(payload);
+}
+
+export async function createExeMachine(name: string | null): Promise<Machine> {
+  const args = exeNewArgs(name);
+  const result = await runExeApi(args, { timeoutMs: 180_000 });
+  const stdout = requireOk(result, `ssh exe.dev ${args.join(" ")}`);
+  return machineFromNewJson(stdout);
 }
 
 export async function exeMagicLoginUrl(): Promise<string> {

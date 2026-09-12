@@ -1,3 +1,4 @@
+import { exeIdentityArgs } from "@domain/exeAccount";
 import { folderName, normalizeDir } from "@domain/remotePath";
 import { spawn } from "node:child_process";
 import { appendFileSync, existsSync, readFileSync } from "node:fs";
@@ -106,13 +107,18 @@ export function runSsh(dest: string, remoteCommand: string, options?: { stdin?: 
   return spawnSsh(args, options);
 }
 
-export function runExeApi(apiArgs: string[], options?: { timeoutMs?: number }): Promise<SshResult> {
+export function runExeApi(
+  apiArgs: string[],
+  options?: { timeoutMs?: number; identityFile?: string | null },
+): Promise<SshResult> {
   ensureExeHostKnown("exe.dev");
+  const identityFile = options?.identityFile ?? null;
   const args = [
     "-o",
     "BatchMode=yes",
     "-o",
     "ConnectTimeout=20",
+    ...exeIdentityArgs(identityFile),
     "exe.dev",
     ...apiArgs,
   ];

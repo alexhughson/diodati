@@ -1,3 +1,4 @@
+import type { ExeAccount } from "./exeAccount";
 import type { Machine, MachineId, MachineOwnership } from "@shared/types";
 
 export type ExeVmRow = {
@@ -34,7 +35,7 @@ export function parseSshDest(row: ExeVmRow): string {
   throw new Error("exe.dev vm row is missing ssh dest and vm_name");
 }
 
-export function machineFromRow(row: ExeVmRow, ownership: MachineOwnership): Machine {
+export function machineFromRow(row: ExeVmRow, ownership: MachineOwnership, account: ExeAccount): Machine {
   const id = row.vm_name;
   if (!id) {
     throw new Error("exe.dev vm row is missing vm_name");
@@ -48,24 +49,32 @@ export function machineFromRow(row: ExeVmRow, ownership: MachineOwnership): Mach
     httpsUrl: row.https_url ?? `https://${id}.exe.xyz`,
     ownership,
     canShell: row.access?.shell !== false,
+    accountEmail: account.email,
+    identityFile: account.identityFile,
   };
 }
 
-export function machinesFromLs(payload: ExeLsJson): Machine[] {
-  const owned = (payload.vms ?? []).map((row) => machineFromRow(row, "owned"));
-  const shared = (payload.shared_vms ?? []).map((row) => machineFromRow(row, "shared"));
-  const team = (payload.team_shared_vms ?? []).map((row) => machineFromRow(row, "team"));
+export function machinesFromLs(payload: ExeLsJson, account: ExeAccount): Machine[] {
+  const owned = (payload.vms ?? []).map((row) => machineFromRow(row, "owned", account));
+  const shared = (payload.shared_vms ?? []).map((row) => machineFromRow(row, "shared", account));
+  const team = (payload.team_shared_vms ?? []).map((row) => machineFromRow(row, "team", account));
+  return mergeAccountMachines([owned, shared, team]);
+}
+
+export function mergeAccountMachines(groups: Machine[][]): Machine[] {
   const byId = new Map<MachineId, Machine>();
-  for (const machine of [...owned, ...shared, ...team]) {
-    const existing = byId.get(machine.id);
-    if (!existing) {
+  for (const group of groups) {
+    for (const machine of group) {
+      const existing = byId.get(machine.id);
+      if (!existing) {
+        byId.set(machine.id, machine);
+        continue;
+      }
+      if (existing.ownership === "owned") {
+        continue;
+      }
       byId.set(machine.id, machine);
-      continue;
     }
-    if (existing.ownership === "owned") {
-      continue;
-    }
-    byId.set(machine.id, machine);
   }
   const reachable = [...byId.values()].filter((machine) => machine.canShell);
   return reachable.sort((left, right) => left.name.localeCompare(right.name));
@@ -90,12 +99,12 @@ export function exeNewArgs(name: string | null): string[] {
   return args;
 }
 
-export function machineFromNewJson(stdout: string): Machine {
+export function machineFromNewJson(stdout: string, account: ExeAccount): Machine {
   const payload = JSON.parse(stdout) as ExeVmRow;
   if (!payload || typeof payload !== "object" || typeof payload.vm_name !== "string") {
     throw new Error(`exe.dev new --json did not return vm_name: ${stdout.trim()}`);
   }
-  return machineFromRow(payload, "owned");
+  return machineFromRow(payload, "owned", account);
 }
 
 export function requireMachine(machines: Machine[], machineId: MachineId): Machine {

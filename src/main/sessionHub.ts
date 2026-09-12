@@ -12,7 +12,9 @@ import {
 import { projectMessages, type ShelleyMessageRow } from "@domain/message";
 import { modelSwitchCommand } from "@domain/model";
 import { requireMachine } from "@domain/machine";
-import { createExeMachine, exeMagicLoginUrl, listExeMachines } from "@infra/exeLs";
+import { identityFilesFromKeys } from "@domain/exeAccount";
+import { createExeMachine, exeMagicLoginUrl, listExeMachines, probeDiscoveredAccounts } from "@infra/exeLs";
+import { loadSshSettings, saveSshSettings } from "@infra/sshSettings";
 import { createRemoteDir, listRemoteDirs } from "@infra/ssh";
 import {
   cancelChat,
@@ -25,7 +27,18 @@ import {
 } from "@infra/shelleyRemote";
 import { openShelleyStream, type StreamHandle } from "@infra/shelleyStream";
 import type { StreamEvent, ThreadOpened } from "@shared/ipc";
-import type { ComposerOptions, Machine, MachineCatalog, MachineId, Model, ProjectedMessage, Thread, ThreadId } from "@shared/types";
+import type {
+  ComposerOptions,
+  ExeAccountProbe,
+  Machine,
+  MachineCatalog,
+  MachineId,
+  Model,
+  ProjectedMessage,
+  SshSettings,
+  Thread,
+  ThreadId,
+} from "@shared/types";
 
 export class SessionHub {
   private machines: Machine[] = [];
@@ -35,10 +48,12 @@ export class SessionHub {
   private rowsThreadId: ThreadId | null = null;
   private emit: (event: StreamEvent) => void;
   private demo: boolean;
+  private settingsDir: string;
 
-  constructor(emit: (event: StreamEvent) => void, demo = false) {
+  constructor(emit: (event: StreamEvent) => void, demo = false, settingsDir = "") {
     this.emit = emit;
     this.demo = demo;
+    this.settingsDir = settingsDir;
   }
 
   demoScene(): { machineId: string; threadId: string } | null {
@@ -52,7 +67,7 @@ export class SessionHub {
     if (this.demo) {
       return this.ensureDemoMachines();
     }
-    this.machines = await listExeMachines();
+    this.machines = await listExeMachines(this.activeIdentityFiles());
     return this.machines;
   }
 
@@ -63,15 +78,27 @@ export class SessionHub {
     return Promise.all(this.machines.map((machine) => this.loadCatalogFor(machine)));
   }
 
-  async createMachine(name: string | null): Promise<Machine> {
+  async createMachine(name: string | null, identityFile: string | null): Promise<Machine> {
     if (this.demo) {
       const created = createDemoMachine(name, this.ensureDemoMachines());
       this.machines = [...this.machines, created].sort((left, right) => left.name.localeCompare(right.name));
       return created;
     }
-    const created = await createExeMachine(name);
-    this.machines = await listExeMachines();
+    const created = await createExeMachine(name, identityFile);
+    this.machines = await listExeMachines(this.activeIdentityFiles());
     return requireMachine(this.machines, created.id);
+  }
+
+  getSshSettings(): SshSettings {
+    return loadSshSettings(this.settingsDir);
+  }
+
+  setSshSettings(settings: SshSettings): SshSettings {
+    return saveSshSettings(this.settingsDir, settings);
+  }
+
+  probeAccounts(): Promise<ExeAccountProbe[]> {
+    return probeDiscoveredAccounts();
   }
 
   async listModels(machineId: MachineId): Promise<Model[]> {
@@ -141,8 +168,11 @@ export class SessionHub {
     await this.sendChat(machineId, threadId, command, options);
   }
 
-  async magicLogin(): Promise<string> {
-    return exeMagicLoginUrl();
+  async magicLogin(identityFile: string | null): Promise<string> {
+    if (this.demo) {
+      throw new Error("demo has no magic login");
+    }
+    return exeMagicLoginUrl(identityFile);
   }
 
   sshDest(machineId: MachineId): string {
@@ -173,6 +203,10 @@ export class SessionHub {
     }
     this.rows.clear();
     this.rowsThreadId = null;
+  }
+
+  private activeIdentityFiles(): Array<string | null> {
+    return identityFilesFromKeys(loadSshSettings(this.settingsDir).activeIdentityKeys);
   }
 
   private ensureDemoMachines(): Machine[] {

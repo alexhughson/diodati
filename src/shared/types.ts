@@ -12,6 +12,30 @@ export type Machine = {
   httpsUrl: string;
   ownership: MachineOwnership;
   canShell: boolean;
+  accountEmail: string;
+  identityFile: string | null;
+};
+
+export type SshSettings = {
+  activeIdentityKeys: string[];
+};
+
+export type ExeAccountProbe = {
+  identityFile: string | null;
+  email: string | null;
+  error: string | null;
+};
+
+export type PreviewTarget = {
+  url: string;
+  accountEmail: string;
+  identityFile: string | null;
+  forceLogin?: boolean;
+};
+
+export type PreviewAuthEvent = {
+  email: string;
+  loggedIn: boolean;
 };
 
 export type Thread = {

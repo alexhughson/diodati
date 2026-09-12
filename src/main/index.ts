@@ -1,7 +1,8 @@
 import { app, BrowserWindow, ipcMain, nativeImage } from "electron";
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { attachPreview, openExternal, previewLoggedIn, watchPreviewLogin, type PreviewController } from "./preview";
+import type { PreviewTarget, SshSettings } from "@shared/types";
+import { attachPreview, openExternal, previewLoggedIn, type PreviewController } from "./preview";
 import { SessionHub } from "./sessionHub";
 import { SshTerminal } from "./sshTerminal";
 
@@ -57,30 +58,32 @@ function createWindow(): void {
     },
   });
 
-  const preview = attachPreview(window);
   const send = (channel: string, payload: unknown) => {
     if (window.isDestroyed() || window.webContents.isDestroyed()) {
       return;
     }
     window.webContents.send(channel, payload);
   };
+  const preview = attachPreview(window, (email, loggedIn) => {
+    send("auth:preview", { email, loggedIn });
+  });
   const terminal = new SshTerminal((event) => {
     send("terminal:event", event);
   });
-  const hub = new SessionHub((event) => {
-    send("shelley:event", event);
-  }, wantsDemo());
+  const hub = new SessionHub(
+    (event) => {
+      send("shelley:event", event);
+    },
+    wantsDemo(),
+    app.getPath("userData"),
+  );
   bindIpc(hub, preview, terminal);
-  const stopAuthWatch = watchPreviewLogin((loggedIn) => {
-    send("auth:preview", loggedIn);
-  });
 
   window.webContents.on("preload-error", (_event, path, error) => {
     console.error("preload-error", path, error);
   });
 
   window.on("close", () => {
-    stopAuthWatch();
     terminal.dispose();
     hub.stop();
     preview.destroy();
@@ -105,7 +108,6 @@ function bindIpc(hub: SessionHub, preview: PreviewController, terminal: SshTermi
   ipcMain.removeHandler("thread.send");
   ipcMain.removeHandler("thread.cancel");
   ipcMain.removeHandler("thread.switchModel");
-  ipcMain.removeHandler("auth.magicLogin");
   ipcMain.removeHandler("auth.previewLoggedIn");
   ipcMain.removeHandler("machine.openTerminal");
   ipcMain.removeHandler("terminal.write");
@@ -118,9 +120,17 @@ function bindIpc(hub: SessionHub, preview: PreviewController, terminal: SshTermi
   ipcMain.removeHandler("fs.createDir");
   ipcMain.removeHandler("demo.scene");
   ipcMain.removeHandler("demo.ready");
+  ipcMain.removeHandler("sshSettings.get");
+  ipcMain.removeHandler("sshSettings.set");
+  ipcMain.removeHandler("accounts.probe");
 
   ipcMain.handle("machines.list", () => hub.listMachines());
-  ipcMain.handle("machines.create", (_event, name: string | null) => hub.createMachine(name));
+  ipcMain.handle("machines.create", (_event, name: string | null, identityFile: string | null) => {
+    return hub.createMachine(name, identityFile);
+  });
+  ipcMain.handle("sshSettings.get", () => hub.getSshSettings());
+  ipcMain.handle("sshSettings.set", (_event, settings: SshSettings) => hub.setSshSettings(settings));
+  ipcMain.handle("accounts.probe", () => hub.probeAccounts());
   ipcMain.handle("catalogs.loadAll", () => hub.loadAllCatalogs());
   ipcMain.handle("models.list", (_event, machineId: string) => hub.listModels(machineId));
   ipcMain.handle("thread.open", (_event, machineId: string, threadId: string) => hub.openThread(machineId, threadId));
@@ -132,8 +142,7 @@ function bindIpc(hub: SessionHub, preview: PreviewController, terminal: SshTermi
   ipcMain.handle("thread.switchModel", (_event, machineId: string, threadId: string, options) => {
     return hub.switchModel(machineId, threadId, options);
   });
-  ipcMain.handle("auth.magicLogin", () => hub.magicLogin());
-  ipcMain.handle("auth.previewLoggedIn", () => previewLoggedIn());
+  ipcMain.handle("auth.previewLoggedIn", (_event, accountEmail: string) => previewLoggedIn(accountEmail));
   ipcMain.handle("machine.openTerminal", (_event, machineId: string, cols: number, rows: number) => {
     terminal.open(machineId, hub.sshDest(machineId), cols, rows);
   });
@@ -146,8 +155,23 @@ function bindIpc(hub: SessionHub, preview: PreviewController, terminal: SshTermi
   ipcMain.handle("terminal.close", () => {
     terminal.closeAll();
   });
-  ipcMain.handle("preview.setUrl", (_event, url: string) => {
-    preview.load(url);
+  let previewLoadSeq = 0;
+  ipcMain.handle("preview.setUrl", async (_event, target: PreviewTarget) => {
+    const mine = ++previewLoadSeq;
+    preview.activate(target.accountEmail);
+    const skipAuth = wantsDemo();
+    const needsLogin = !skipAuth && (Boolean(target.forceLogin) || !(await preview.loggedIn(target.accountEmail)));
+    if (needsLogin) {
+      const magic = await hub.magicLogin(target.identityFile);
+      if (mine !== previewLoadSeq) {
+        return;
+      }
+      await preview.loginWithMagic(target.accountEmail, magic);
+    }
+    if (mine !== previewLoadSeq) {
+      return;
+    }
+    preview.load(target.url);
   });
   ipcMain.handle("preview.setBounds", (_event, bounds) => {
     if (!bounds) {

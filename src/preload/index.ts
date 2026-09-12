@@ -1,10 +1,15 @@
 import { contextBridge, ipcRenderer } from "electron";
 import type { IpcApi, StreamEvent, TerminalEvent } from "@shared/ipc";
-import type { ComposerOptions, MachineId, ThreadId } from "@shared/types";
+import type { ComposerOptions, MachineId, PreviewAuthEvent, PreviewTarget, SshSettings, ThreadId } from "@shared/types";
 
 const api: IpcApi = {
   listMachines: () => ipcRenderer.invoke("machines.list"),
-  createMachine: (name: string | null) => ipcRenderer.invoke("machines.create", name),
+  createMachine: (name: string | null, identityFile: string | null) => {
+    return ipcRenderer.invoke("machines.create", name, identityFile);
+  },
+  getSshSettings: () => ipcRenderer.invoke("sshSettings.get"),
+  setSshSettings: (settings: SshSettings) => ipcRenderer.invoke("sshSettings.set", settings),
+  probeAccounts: () => ipcRenderer.invoke("accounts.probe"),
   loadAllCatalogs: () => ipcRenderer.invoke("catalogs.loadAll"),
   listModels: (machineId: MachineId) => ipcRenderer.invoke("models.list", machineId),
   openThread: (machineId: MachineId, threadId: ThreadId) => ipcRenderer.invoke("thread.open", machineId, threadId),
@@ -18,11 +23,10 @@ const api: IpcApi = {
   switchModel: (machineId: MachineId, threadId: ThreadId, options: ComposerOptions) => {
     return ipcRenderer.invoke("thread.switchModel", machineId, threadId, options);
   },
-  openMagicLogin: () => ipcRenderer.invoke("auth.magicLogin"),
-  previewLoggedIn: () => ipcRenderer.invoke("auth.previewLoggedIn"),
-  onPreviewAuth: (handler: (loggedIn: boolean) => void) => {
-    const listener = (_event: unknown, loggedIn: boolean) => {
-      handler(loggedIn);
+  previewLoggedIn: (accountEmail: string) => ipcRenderer.invoke("auth.previewLoggedIn", accountEmail),
+  onPreviewAuth: (handler: (event: PreviewAuthEvent) => void) => {
+    const listener = (_event: unknown, event: PreviewAuthEvent) => {
+      handler(event);
     };
     ipcRenderer.on("auth:preview", listener);
     return () => {
@@ -46,7 +50,7 @@ const api: IpcApi = {
       ipcRenderer.removeListener("terminal:event", listener);
     };
   },
-  setPreviewUrl: (url: string) => ipcRenderer.invoke("preview.setUrl", url),
+  setPreviewUrl: (target: PreviewTarget) => ipcRenderer.invoke("preview.setUrl", target),
   setPreviewBounds: (bounds) => ipcRenderer.invoke("preview.setBounds", bounds),
   openExternal: (url: string) => ipcRenderer.invoke("preview.openExternal", url),
   listRemoteDirs: (machineId: MachineId, dir: string) => ipcRenderer.invoke("fs.listDirs", machineId, dir),

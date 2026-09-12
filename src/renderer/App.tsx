@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { folderChoices, upsertThreadInCatalogs } from "@domain/catalog";
 import { classifyExeConnectError, firstErrorLine, type ExeConnectKind } from "@domain/exeConnect";
 import { defaultModel } from "@domain/model";
+import { machineIds, sortCatalogs, syncManualOrder, type SidebarSort } from "@domain/sidebarOrder";
 import type { MachineCatalog, Model, ProjectedMessage, ReasoningLevel, Thread } from "@shared/types";
 import { ChatPane } from "./ui/ChatPane";
 import { Composer } from "./ui/Composer";
@@ -13,9 +14,15 @@ import { Sidebar } from "./ui/Sidebar";
 import { TerminalPane } from "./ui/TerminalPane";
 import {
   defaultLayoutSizes,
+  readCollapsedMachines,
   readLayoutSizes,
+  readManualOrder,
+  readSidebarSort,
   readTerminalDock,
+  writeCollapsedMachines,
   writeLayoutSizes,
+  writeManualOrder,
+  writeSidebarSort,
   writeTerminalDock,
   type LayoutSizes,
   type TerminalDock,
@@ -48,6 +55,9 @@ export function App() {
   const [theme, setTheme] = useState<ThemeId>("paper");
   const [terminalDock, setTerminalDock] = useState<TerminalDock>("bottom");
   const [layout, setLayout] = useState<LayoutSizes>(defaultLayoutSizes);
+  const [sidebarSort, setSidebarSort] = useState<SidebarSort>("manual");
+  const [manualOrder, setManualOrder] = useState<string[]>([]);
+  const [collapsedIds, setCollapsedIds] = useState<string[]>([]);
   const [dragBlocksPreview, setDragBlocksPreview] = useState(false);
 
   const selectedCatalog = useMemo(() => {
@@ -69,6 +79,9 @@ export function App() {
     document.documentElement.dataset.theme = next;
     setTerminalDock(readTerminalDock());
     setLayout(readLayoutSizes());
+    setSidebarSort(readSidebarSort());
+    setManualOrder(readManualOrder());
+    setCollapsedIds(readCollapsedMachines());
   }, []);
 
   const refreshMachines = async (): Promise<MachineCatalog[]> => {
@@ -107,6 +120,7 @@ export function App() {
         setTheme("paper");
         setTerminalDock("bottom");
         setLayout(defaultLayoutSizes);
+        setCollapsedIds([]);
       }
       const nextCatalogs = await refreshMachines();
       if (cancelled || !scene) {
@@ -141,19 +155,26 @@ export function App() {
 
   useEffect(() => {
     let alive = true;
-    void window.diodati.previewLoggedIn().then((loggedIn) => {
+    const email = selectedMachine?.accountEmail;
+    if (!email) {
+      setPreviewLoggedIn(false);
+      return;
+    }
+    void window.diodati.previewLoggedIn(email).then((loggedIn) => {
       if (alive) {
         setPreviewLoggedIn(loggedIn);
       }
     });
-    const stop = window.diodati.onPreviewAuth((loggedIn) => {
-      setPreviewLoggedIn(loggedIn);
+    const stop = window.diodati.onPreviewAuth((event) => {
+      if (event.email === email) {
+        setPreviewLoggedIn(event.loggedIn);
+      }
     });
     return () => {
       alive = false;
       stop();
     };
-  }, []);
+  }, [selectedMachine?.accountEmail]);
 
   useEffect(() => {
     return window.diodati.onStream((event) => {
@@ -196,7 +217,21 @@ export function App() {
     if (!selectedMachine || !previewOpen) {
       return;
     }
-    void window.diodati.setPreviewUrl(selectedMachine.httpsUrl);
+    let cancelled = false;
+    void window.diodati
+      .setPreviewUrl({
+        url: selectedMachine.httpsUrl,
+        accountEmail: selectedMachine.accountEmail,
+        identityFile: selectedMachine.identityFile,
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : String(err));
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [selectedMachine, previewOpen]);
 
   useEffect(() => {
@@ -295,9 +330,9 @@ export function App() {
     await ensureModels(machineId, source);
   };
 
-  const createMachine = async (name: string | null) => {
+  const createMachine = async (name: string | null, identityFile: string | null) => {
     setError(null);
-    const created = await window.diodati.createMachine(name);
+    const created = await window.diodati.createMachine(name, identityFile);
     const nextCatalogs = await refreshMachines();
     setCreateMachineOpen(false);
     await selectMachine(created.id, nextCatalogs);
@@ -394,9 +429,16 @@ export function App() {
   };
 
   const login = async () => {
+    if (!selectedMachine) {
+      return;
+    }
     try {
-      const url = await window.diodati.openMagicLogin();
-      await window.diodati.setPreviewUrl(url);
+      await window.diodati.setPreviewUrl({
+        url: selectedMachine.httpsUrl,
+        accountEmail: selectedMachine.accountEmail,
+        identityFile: selectedMachine.identityFile,
+        forceLogin: true,
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     }
@@ -480,6 +522,46 @@ export function App() {
           void beginNewThread(id);
         }}
         onOpenTerminal={(id) => toggleTerminal(id)}
+        sidebarSort={sidebarSort}
+        manualOrder={manualOrder}
+        onSidebarSort={(next) => {
+          if (next === "manual") {
+            if (manualOrder.length === 0) {
+              const fromView = machineIds(sortCatalogs(catalogs, sidebarSort, []));
+              setManualOrder(fromView);
+              writeManualOrder(fromView);
+            } else {
+              const synced = syncManualOrder(manualOrder, catalogs);
+              setManualOrder(synced);
+              writeManualOrder(synced);
+            }
+          }
+          setSidebarSort(next);
+          writeSidebarSort(next);
+        }}
+        onManualOrder={(order) => {
+          setManualOrder(order);
+          writeManualOrder(order);
+        }}
+        collapsedIds={collapsedIds}
+        onToggleCollapsed={(machineId) => {
+          setCollapsedIds((current) => {
+            const next: string[] = [];
+            let found = false;
+            for (const id of current) {
+              if (id === machineId) {
+                found = true;
+                continue;
+              }
+              next.push(id);
+            }
+            if (!found) {
+              next.push(machineId);
+            }
+            writeCollapsedMachines(next);
+            return next;
+          });
+        }}
       />
       <div className="chat">
         {settingsOpen ? (
@@ -488,6 +570,7 @@ export function App() {
             onTheme={applyTheme}
             terminalDock={terminalDock}
             onTerminalDock={applyTerminalDock}
+            onKeysChanged={() => void refreshMachines()}
             onClose={() => setSettingsOpen(false)}
           />
         ) : null}

@@ -2,7 +2,7 @@ import { requireMachine } from "../src/domain/machine";
 import { listExeMachines } from "../src/infra/exeLs";
 import { createDraft, listMachineModels, listMachineThreads } from "../src/infra/shelleyRemote";
 
-const machines = await listExeMachines();
+const machines = await listExeMachines([null]);
 if (machines.length === 0) {
   throw new Error("ssh exe.dev ls returned no machines");
 }

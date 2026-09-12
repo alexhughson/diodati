@@ -7,6 +7,7 @@ export const DEMO_SCENE = {
 } as const;
 
 const HOME = "/home/guest";
+const DEMO_ACCOUNT_EMAIL = "demo@diodati.local";
 
 function machine(partial: Machine): Machine {
   return partial;
@@ -26,6 +27,8 @@ export const demoMachines: Machine[] = [
     httpsUrl: "https://villa-diodati.exe.xyz",
     ownership: "owned",
     canShell: true,
+    accountEmail: DEMO_ACCOUNT_EMAIL,
+    identityFile: null,
   }),
   machine({
     id: "mont-blanc",
@@ -36,6 +39,8 @@ export const demoMachines: Machine[] = [
     httpsUrl: "https://mont-blanc.exe.xyz",
     ownership: "owned",
     canShell: true,
+    accountEmail: DEMO_ACCOUNT_EMAIL,
+    identityFile: null,
   }),
   machine({
     id: "lake-geneva",
@@ -46,6 +51,8 @@ export const demoMachines: Machine[] = [
     httpsUrl: "https://lake-geneva.exe.xyz",
     ownership: "shared",
     canShell: true,
+    accountEmail: DEMO_ACCOUNT_EMAIL,
+    identityFile: null,
   }),
 ];
 
@@ -159,6 +166,8 @@ export function createDemoMachine(name: string | null, existing: Machine[]): Mac
     httpsUrl: `https://${id}.exe.xyz`,
     ownership: "owned",
     canShell: true,
+    accountEmail: DEMO_ACCOUNT_EMAIL,
+    identityFile: null,
   };
 }
 

@@ -1,10 +1,14 @@
 import type {
   ComposerOptions,
+  ExeAccountProbe,
   Machine,
   MachineCatalog,
   MachineId,
   Model,
+  PreviewAuthEvent,
+  PreviewTarget,
   ProjectedMessage,
+  SshSettings,
   Thread,
   ThreadId,
 } from "./types";
@@ -27,7 +31,10 @@ export type StreamEvent =
 
 export type IpcApi = {
   listMachines: () => Promise<Machine[]>;
-  createMachine: (name: string | null) => Promise<Machine>;
+  createMachine: (name: string | null, identityFile: string | null) => Promise<Machine>;
+  getSshSettings: () => Promise<SshSettings>;
+  setSshSettings: (settings: SshSettings) => Promise<SshSettings>;
+  probeAccounts: () => Promise<ExeAccountProbe[]>;
   loadAllCatalogs: () => Promise<MachineCatalog[]>;
   listModels: (machineId: MachineId) => Promise<Model[]>;
   openThread: (machineId: MachineId, threadId: ThreadId) => Promise<ThreadOpened>;
@@ -35,15 +42,14 @@ export type IpcApi = {
   sendChat: (machineId: MachineId, threadId: ThreadId, message: string, options: ComposerOptions) => Promise<void>;
   cancelChat: (machineId: MachineId, threadId: ThreadId) => Promise<void>;
   switchModel: (machineId: MachineId, threadId: ThreadId, options: ComposerOptions) => Promise<void>;
-  openMagicLogin: () => Promise<string>;
-  previewLoggedIn: () => Promise<boolean>;
-  onPreviewAuth: (handler: (loggedIn: boolean) => void) => () => void;
+  previewLoggedIn: (accountEmail: string) => Promise<boolean>;
+  onPreviewAuth: (handler: (event: PreviewAuthEvent) => void) => () => void;
   openTerminal: (machineId: MachineId, cols: number, rows: number) => Promise<void>;
   writeTerminal: (machineId: MachineId, data: string) => Promise<void>;
   resizeTerminal: (machineId: MachineId, cols: number, rows: number) => Promise<void>;
   closeTerminal: () => Promise<void>;
   onTerminal: (handler: (event: TerminalEvent) => void) => () => void;
-  setPreviewUrl: (url: string) => Promise<void>;
+  setPreviewUrl: (target: PreviewTarget) => Promise<void>;
   setPreviewBounds: (bounds: { x: number; y: number; width: number; height: number } | null) => Promise<void>;
   openExternal: (url: string) => Promise<void>;
   onStream: (handler: (event: StreamEvent) => void) => () => void;

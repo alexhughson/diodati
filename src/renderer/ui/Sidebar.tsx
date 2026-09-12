@@ -1,8 +1,12 @@
+import { useState } from "react";
 import { groupThreads } from "@domain/catalog";
+import { showAccountLabels } from "@domain/exeAccount";
+import { machineIds, moveManualOrder, sortCatalogs, syncManualOrder, type SidebarSort } from "@domain/sidebarOrder";
 import { displayFolder } from "@domain/thread";
 import { threadTitle } from "@domain/thread";
 import type { MachineCatalog, Thread } from "@shared/types";
-import { ComposeIcon, PlusIcon, RefreshIcon, TerminalIcon } from "./icons";
+import { CaretIcon, ComposeIcon, PlusIcon, RefreshIcon, SortIcon, TerminalIcon } from "./icons";
+import { Pop } from "./Pop";
 import { Splitter } from "./Splitter";
 
 type Props = {
@@ -21,6 +25,12 @@ type Props = {
   onOpenTerminal: (machineId: string) => void;
   terminalOpen: boolean;
   onRefreshMachines: () => void;
+  sidebarSort: SidebarSort;
+  manualOrder: string[];
+  onSidebarSort: (sort: SidebarSort) => void;
+  onManualOrder: (order: string[]) => void;
+  collapsedIds: string[];
+  onToggleCollapsed: (machineId: string) => void;
   width: number;
   onResizeStart: () => number;
   onResize: (width: number) => void;
@@ -28,6 +38,25 @@ type Props = {
 };
 
 export function Sidebar(props: Props) {
+  const [dragId, setDragId] = useState<string | null>(null);
+  const [dropId, setDropId] = useState<string | null>(null);
+  const [sortOpen, setSortOpen] = useState(false);
+  const emails: string[] = [];
+  for (const catalog of props.catalogs) {
+    emails.push(catalog.machine.accountEmail);
+  }
+  const showAccount = showAccountLabels(emails);
+  const visible = sortCatalogs(props.catalogs, props.sidebarSort, props.manualOrder);
+  const manual = props.sidebarSort === "manual";
+
+  const dropOn = (sourceId: string, targetId: string) => {
+    const synced = syncManualOrder(props.manualOrder, props.catalogs);
+    const seeded = synced.length > 0 ? synced : machineIds(visible);
+    props.onManualOrder(moveManualOrder(seeded, sourceId, targetId));
+    setDragId(null);
+    setDropId(null);
+  };
+
   return (
     <aside className="sidebar">
       <div className="sidebar-body">
@@ -50,6 +79,46 @@ export function Sidebar(props: Props) {
         >
           <RefreshIcon />
         </button>
+        <Pop open={sortOpen} onClose={() => setSortOpen(false)}>
+          <button
+            className={sortOpen ? "icon-btn active" : "icon-btn"}
+            title="sort machines"
+            onClick={() => setSortOpen(!sortOpen)}
+          >
+            <SortIcon />
+          </button>
+          {sortOpen ? (
+            <div className="pop-menu pop-menu-down pop-menu-narrow" role="menu">
+              <button
+                className={props.sidebarSort === "recent" ? "pop-item active" : "pop-item"}
+                onClick={() => {
+                  props.onSidebarSort("recent");
+                  setSortOpen(false);
+                }}
+              >
+                Most recent
+              </button>
+              <button
+                className={props.sidebarSort === "default" ? "pop-item active" : "pop-item"}
+                onClick={() => {
+                  props.onSidebarSort("default");
+                  setSortOpen(false);
+                }}
+              >
+                Default
+              </button>
+              <button
+                className={props.sidebarSort === "manual" ? "pop-item active" : "pop-item"}
+                onClick={() => {
+                  props.onSidebarSort("manual");
+                  setSortOpen(false);
+                }}
+              >
+                Manual
+              </button>
+            </div>
+          ) : null}
+        </Pop>
         <button
           className={props.settingsOpen ? "icon-btn active" : "icon-btn"}
           title="settings"
@@ -69,10 +138,14 @@ export function Sidebar(props: Props) {
         {!props.loadingMachines && props.catalogs.length === 0 && props.connectHint ? (
           <div className="empty">{props.connectHint}</div>
         ) : null}
-        {props.catalogs.map((catalog) => (
+        {visible.map((catalog) => (
           <MachineBlock
             key={catalog.machine.id}
             catalog={catalog}
+            showAccount={showAccount}
+            manual={manual}
+            dragging={dragId === catalog.machine.id}
+            dropTarget={dropId === catalog.machine.id}
             selectedMachineId={props.selectedMachineId}
             selectedThreadId={props.selectedThreadId}
             onSelectMachine={props.onSelectMachine}
@@ -80,6 +153,19 @@ export function Sidebar(props: Props) {
             onNewThread={props.onNewThread}
             onOpenTerminal={props.onOpenTerminal}
             terminalOpen={props.terminalOpen}
+            onDragStart={(id) => {
+              setDragId(id);
+            }}
+            onDragOver={(id) => {
+              setDropId(id);
+            }}
+            onDragEnd={() => {
+              setDragId(null);
+              setDropId(null);
+            }}
+            onDrop={dropOn}
+            collapsed={props.collapsedIds.includes(catalog.machine.id)}
+            onToggleCollapsed={() => props.onToggleCollapsed(catalog.machine.id)}
           />
         ))}
       </div>
@@ -97,6 +183,10 @@ export function Sidebar(props: Props) {
 
 function MachineBlock(props: {
   catalog: MachineCatalog;
+  showAccount: boolean;
+  manual: boolean;
+  dragging: boolean;
+  dropTarget: boolean;
   selectedMachineId: string | null;
   selectedThreadId: string | null;
   onSelectMachine: (machineId: string) => void;
@@ -104,6 +194,12 @@ function MachineBlock(props: {
   onNewThread: (machineId: string) => void;
   onOpenTerminal: (machineId: string) => void;
   terminalOpen: boolean;
+  onDragStart: (machineId: string) => void;
+  onDragOver: (machineId: string) => void;
+  onDragEnd: () => void;
+  onDrop: (sourceId: string, targetId: string) => void;
+  collapsed: boolean;
+  onToggleCollapsed: () => void;
 }) {
   const machine = props.catalog.machine;
   const groups = groupThreads(props.catalog.threads);
@@ -115,16 +211,84 @@ function MachineBlock(props: {
   } else if (machine.status === "running") {
     dotClass = "dot running";
   }
+  let blockClass = "machine-block";
+  if (props.dragging) {
+    blockClass = "machine-block dragging";
+  } else if (props.dropTarget) {
+    blockClass = "machine-block drop-target";
+  }
   return (
-    <div className="machine-block">
-      <div className={machine.id === props.selectedMachineId ? "machine-row active" : "machine-row"}>
+    <div
+      className={blockClass}
+      onDragOver={(event) => {
+        if (!props.manual) {
+          return;
+        }
+        event.preventDefault();
+        event.dataTransfer.dropEffect = "move";
+        props.onDragOver(machine.id);
+      }}
+      onDrop={(event) => {
+        if (!props.manual) {
+          return;
+        }
+        event.preventDefault();
+        const sourceId = event.dataTransfer.getData("text/machine-id");
+        if (sourceId.length === 0) {
+          return;
+        }
+        props.onDrop(sourceId, machine.id);
+      }}
+    >
+      <div
+        className={machine.id === props.selectedMachineId ? "machine-row active" : "machine-row"}
+        draggable={props.manual}
+        onDragStart={(event) => {
+          if (!props.manual) {
+            return;
+          }
+          const origin = event.target;
+          if (origin instanceof Element && origin.closest("button.caret")) {
+            event.preventDefault();
+            return;
+          }
+          event.dataTransfer.setData("text/machine-id", machine.id);
+          event.dataTransfer.effectAllowed = "move";
+          props.onDragStart(machine.id);
+        }}
+        onDragEnd={() => {
+          props.onDragEnd();
+        }}
+      >
+        <button
+          className={props.collapsed ? "caret" : "caret open"}
+          title={props.collapsed ? `show threads on ${machine.name}` : `hide threads on ${machine.name}`}
+          aria-expanded={!props.collapsed}
+          draggable={false}
+          onMouseDown={(event) => {
+            event.stopPropagation();
+          }}
+          onClick={(event) => {
+            event.stopPropagation();
+            props.onToggleCollapsed();
+          }}
+        >
+          <CaretIcon />
+        </button>
         <button
           className="machine"
           title={loadError ? loadError.split("\n")[0] : undefined}
           onClick={() => props.onSelectMachine(machine.id)}
         >
           <span className="emoji">{machine.emoji}</span>
-          <span className="name">{machine.name}</span>
+          <span className="machine-copy">
+            <span className="name">{machine.name}</span>
+            {props.showAccount ? (
+              <span className="account" title={machine.accountEmail}>
+                {machine.accountEmail}
+              </span>
+            ) : null}
+          </span>
           <span className={dotClass} title={loadError ?? machine.status} />
         </button>
         <button
@@ -148,29 +312,31 @@ function MachineBlock(props: {
           <ComposeIcon />
         </button>
       </div>
-      {groups.map((group) => (
-        <div key={group.cwd ?? "no-cwd"}>
-          {flattenFolders ? null : (
-            <div className="folder-label">{displayFolder(group.cwd, props.catalog.homeDir)}</div>
-          )}
-          {group.threads.map((thread) => {
-            const title = threadTitle(thread);
-            return (
-            <button
-              key={thread.id}
-              className={thread.id === props.selectedThreadId ? "thread active" : "thread"}
-              title={title}
-              onClick={() => props.onSelectThread(thread)}
-            >
-              <span className="title" title={title}>
-                {title}
-              </span>
-              {thread.working ? <span className="thread-preview">working</span> : null}
-            </button>
-            );
-          })}
-        </div>
-      ))}
+      {props.collapsed
+        ? null
+        : groups.map((group) => (
+            <div key={group.cwd ?? "no-cwd"}>
+              {flattenFolders ? null : (
+                <div className="folder-label">{displayFolder(group.cwd, props.catalog.homeDir)}</div>
+              )}
+              {group.threads.map((thread) => {
+                const title = threadTitle(thread);
+                return (
+                  <button
+                    key={thread.id}
+                    className={thread.id === props.selectedThreadId ? "thread active" : "thread"}
+                    title={title}
+                    onClick={() => props.onSelectThread(thread)}
+                  >
+                    <span className="title" title={title}>
+                      {title}
+                    </span>
+                    {thread.working ? <span className="thread-preview">working</span> : null}
+                  </button>
+                );
+              })}
+            </div>
+          ))}
     </div>
   );
 }

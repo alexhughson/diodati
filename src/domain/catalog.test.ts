@@ -11,6 +11,8 @@ const machine: Machine = {
   httpsUrl: "https://alley-tablebase.exe.xyz",
   ownership: "owned",
   canShell: true,
+  accountEmail: "alex@getjevy.com",
+  identityFile: null,
 };
 
 function thread(partial: Partial<Thread> & Pick<Thread, "id">): Thread {

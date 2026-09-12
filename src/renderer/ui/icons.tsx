@@ -73,6 +73,36 @@ export function ExternalLinkIcon() {
   );
 }
 
+export function CaretIcon() {
+  return (
+    <svg viewBox="0 0 16 16" width="10" height="10" aria-hidden="true">
+      <path
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="m6 3.6 4.4 4.4L6 12.4"
+      />
+    </svg>
+  );
+}
+
+export function SortIcon() {
+  return (
+    <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+      <path
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.4"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M4 5.2 6.2 3l2.2 2.2M6.2 3v10M12 10.8 9.8 13 7.6 10.8M9.8 13V3"
+      />
+    </svg>
+  );
+}
+
 export function ComposeIcon() {
   return (
     <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">

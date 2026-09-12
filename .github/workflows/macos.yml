@@ -25,10 +25,11 @@ jobs:
         run: bun run package:mac
       - name: Check the app name
         run: |
-          plist=release/mac-arm64/Diodati.app/Contents/Info.plist
-          if [ ! -f "$plist" ]; then
-            plist=release/mac/Diodati.app/Contents/Info.plist
+          app=release/mac-arm64/Diodati.app
+          if [ ! -d "$app" ]; then
+            app=release/mac/Diodati.app
           fi
+          plist="$app/Contents/Info.plist"
           name=$(plutil -extract CFBundleName raw "$plist")
           display=$(plutil -extract CFBundleDisplayName raw "$plist")
           exec_name=$(plutil -extract CFBundleExecutable raw "$plist")
@@ -38,6 +39,10 @@ jobs:
           test "$name" = "Diodati"
           test "$display" = "Diodati"
           test "$exec_name" = "Diodati"
+          codesign --verify --deep --strict "$app"
+          identifier=$(codesign -d --verbose=2 "$app" 2>&1 | awk -F= '/^Identifier=/{print $2}')
+          echo "Identifier=$identifier"
+          test "$identifier" = "app.diodati.desktop"
       - uses: actions/upload-artifact@v4
         with:
           name: Diodati-macOS
@@ -51,4 +56,4 @@ jobs:
           name: Diodati for macOS
           make_latest: true
           files: release/Diodati-macOS.zip
-          body: Unsigned Apple Silicon build. Right-click Open the first time, or run `xattr -cr Diodati.app`.
+          body: Apple Silicon build. Not notarized by Apple. If macOS blocks the first open, use System Settings → Privacy & Security → Open Anyway.

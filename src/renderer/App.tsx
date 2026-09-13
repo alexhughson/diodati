@@ -37,7 +37,6 @@ export function App() {
   const [composing, setComposing] = useState(false);
   const [draftCwd, setDraftCwd] = useState<string | null>(null);
   const [messages, setMessages] = useState<ProjectedMessage[]>([]);
-  const [text, setText] = useState("");
   const [modelId, setModelId] = useState("");
   const [thinkingLevel, setThinkingLevel] = useState<ReasoningLevel | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -278,7 +277,6 @@ export function App() {
     setMessages([]);
     setLiveDelta("");
     setWorking(false);
-    setText("");
     setError(null);
     setComposing(false);
   };
@@ -375,12 +373,10 @@ export function App() {
     }
   };
 
-  const send = async () => {
-    if (!selectedMachineId || !modelId || text.trim().length === 0) {
+  const send = async (message: string) => {
+    if (!selectedMachineId || !modelId || message.trim().length === 0) {
       return;
     }
-    const message = text;
-    setText("");
     setError(null);
     try {
       let current = thread;
@@ -616,7 +612,7 @@ export function App() {
             />
             {selectedMachineId ? (
               <Composer
-                text={text}
+                key={`${selectedMachineId}:${thread?.id ?? "draft"}`}
                 models={models}
                 modelId={modelId}
                 thinkingLevel={thinkingLevel}
@@ -627,7 +623,6 @@ export function App() {
                 showFolder={!thread || Boolean(thread.isDraft)}
                 working={working}
                 disabled={false}
-                onText={setText}
                 onCwd={setDraftCwd}
                 onModel={async (nextModel) => {
                   setModelId(nextModel);
@@ -639,7 +634,7 @@ export function App() {
                   }
                 }}
                 onThinking={setThinkingLevel}
-                onSend={() => void send()}
+                onSend={(message) => void send(message)}
                 onCancel={() => void cancel()}
               />
             ) : null}

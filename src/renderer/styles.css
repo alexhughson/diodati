@@ -18,7 +18,7 @@
   --danger: #b64b4b;
   --ok: #415558;
   --shadow: 0 10px 24px rgba(54, 54, 55, 0.08);
-  --radius: 8px;
+  --radius: 10px;
   --term-black: #363637;
   --term-red: #b64b4b;
   --term-green: #415558;
@@ -303,7 +303,7 @@ button {
   flex-direction: row;
   align-items: stretch;
   padding: 46px 0 10px;
-  -webkit-app-region: no-drag;
+  -webkit-app-region: drag;
 }
 
 .sidebar-body {
@@ -313,6 +313,7 @@ button {
   display: flex;
   flex-direction: column;
   overflow: visible;
+  -webkit-app-region: no-drag;
 }
 
 .brand {
@@ -726,6 +727,10 @@ button {
   gap: 12px;
   padding: 16px 18px 10px;
   border-bottom: 1px solid var(--border);
+  -webkit-app-region: drag;
+}
+
+.chat-header button {
   -webkit-app-region: no-drag;
 }
 
@@ -753,11 +758,20 @@ button {
   display: flex;
   align-items: center;
   gap: 6px;
+  -webkit-app-region: no-drag;
 }
 
 .header-actions .icon-btn {
   width: 28px;
   height: 28px;
+}
+
+.messages-wrap {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 .messages {
@@ -767,6 +781,20 @@ button {
   display: flex;
   flex-direction: column;
   gap: 12px;
+}
+
+.jump-latest {
+  position: absolute;
+  right: 22px;
+  bottom: 12px;
+  z-index: 2;
+  padding: 5px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-panel);
+  box-shadow: var(--shadow);
+  color: var(--text);
+  font-size: 12px;
 }
 
 .bubble {
@@ -1215,6 +1243,12 @@ button {
   gap: 8px;
   align-items: center;
   padding: 16px 12px 10px;
+  -webkit-app-region: drag;
+}
+
+.preview-bar input,
+.preview-bar button {
+  -webkit-app-region: no-drag;
 }
 
 .preview-bar input {

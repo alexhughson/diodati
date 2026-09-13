@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { layoutMessage } from "@domain/message";
 import { displayFolder, threadTitle } from "@domain/thread";
 import type { ChatBlock, ProjectedMessage, Thread } from "@shared/types";
@@ -25,11 +25,42 @@ type Props = {
   onClearError: () => void;
 };
 
+const BOTTOM_PX = 48;
+
+function nearBottom(node: HTMLElement): boolean {
+  const leftover = node.scrollHeight - node.scrollTop - node.clientHeight;
+  return leftover <= BOTTOM_PX;
+}
+
 export function ChatPane(props: Props) {
   const listRef = useRef<HTMLDivElement | null>(null);
+  const pinnedRef = useRef(true);
+  const [showJump, setShowJump] = useState(false);
+
+  const applyPin = (pinned: boolean) => {
+    pinnedRef.current = pinned;
+    setShowJump(!pinned);
+  };
+
+  const scrollToLatest = () => {
+    const node = listRef.current;
+    if (!node) {
+      return;
+    }
+    node.scrollTop = node.scrollHeight;
+    applyPin(true);
+  };
+
+  useEffect(() => {
+    applyPin(true);
+  }, [props.thread?.id]);
+
   useEffect(() => {
     const node = listRef.current;
     if (!node) {
+      return;
+    }
+    if (!pinnedRef.current) {
       return;
     }
     node.scrollTop = node.scrollHeight;
@@ -87,7 +118,18 @@ export function ChatPane(props: Props) {
             : "Select a machine, then open a thread or start a new one beside the machine name."}
         </div>
       ) : (
-        <div className="messages" ref={listRef}>
+        <div className="messages-wrap">
+          <div
+            className="messages"
+            ref={listRef}
+            onScroll={() => {
+              const node = listRef.current;
+              if (!node) {
+                return;
+              }
+              applyPin(nearBottom(node));
+            }}
+          >
           {props.messages.map((message) => {
             const parts = layoutMessage(message.blocks);
             let proseSeen = false;
@@ -134,6 +176,12 @@ export function ChatPane(props: Props) {
               <div className="meta">agent</div>
               <MarkdownBody text={props.liveDelta} />
             </article>
+          ) : null}
+          </div>
+          {showJump ? (
+            <button className="jump-latest" title="return to bottom" onClick={scrollToLatest}>
+              latest
+            </button>
           ) : null}
         </div>
       )}

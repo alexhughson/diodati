@@ -6,7 +6,6 @@ import { FolderPicker } from "./FolderPicker";
 import { ModelPicker } from "./ModelPicker";
 
 type Props = {
-  text: string;
   models: Model[];
   modelId: string;
   thinkingLevel: ReasoningLevel | null;
@@ -17,17 +16,17 @@ type Props = {
   showFolder: boolean;
   working: boolean;
   disabled: boolean;
-  onText: (text: string) => void;
   onModel: (modelId: string) => void;
   onThinking: (level: ReasoningLevel | null) => void;
   onCwd: (cwd: string) => void;
-  onSend: () => void;
+  onSend: (text: string) => void;
   onCancel: () => void;
 };
 
 export function Composer(props: Props) {
-  const matches = matchingSlashCommands(props.text);
-  const token = slashToken(props.text);
+  const [text, setText] = useState("");
+  const matches = matchingSlashCommands(text);
+  const token = slashToken(text);
   const exactAlone = matches.length === 1 && matches[0]?.command === `/${token}`;
   const [highlight, setHighlight] = useState(0);
   const [dismissed, setDismissed] = useState(false);
@@ -44,7 +43,16 @@ export function Composer(props: Props) {
     if (!command) {
       return;
     }
-    props.onText(completeSlashCommand(command));
+    setText(completeSlashCommand(command));
+  };
+
+  const submit = () => {
+    const message = text;
+    if (props.disabled || message.trim().length === 0) {
+      return;
+    }
+    setText("");
+    props.onSend(message);
   };
 
   return (
@@ -71,10 +79,10 @@ export function Composer(props: Props) {
           </div>
         ) : null}
         <textarea
-          value={props.text}
+          value={text}
           placeholder="Message Shelley on this machine"
           disabled={props.disabled}
-          onChange={(event) => props.onText(event.target.value)}
+          onChange={(event) => setText(event.target.value)}
           onKeyDown={(event) => {
             if (showMenu && event.key === "ArrowDown") {
               event.preventDefault();
@@ -98,7 +106,7 @@ export function Composer(props: Props) {
             }
             if (event.key === "Enter" && !event.shiftKey) {
               event.preventDefault();
-              props.onSend();
+              submit();
             }
           }}
         />
@@ -126,7 +134,7 @@ export function Composer(props: Props) {
               stop
             </button>
           ) : (
-            <button className="send" onClick={props.onSend} disabled={props.disabled || props.text.trim().length === 0}>
+            <button className="send" onClick={submit} disabled={props.disabled || text.trim().length === 0}>
               send
             </button>
           )}

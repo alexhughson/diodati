@@ -28,7 +28,7 @@ export function openShelleyStream(
   onEvent: (event: StreamInput) => void,
 ): StreamHandle {
   const path = `/api/stream2?conversation=${encodeURIComponent(threadId)}`;
-  const child: ChildProcess = spawnSshProcess(machine.sshDest, remoteCurlStream(path));
+  const child: ChildProcess = spawnSshProcess(machine.sshDest, remoteCurlStream(path), machine.identityFile);
   let stopped = false;
   let buffer = "";
 

@@ -179,12 +179,17 @@ export class SessionHub {
     return this.machine(machineId).sshDest;
   }
 
+  identityFile(machineId: MachineId): string | null {
+    return this.machine(machineId).identityFile;
+  }
+
   async listDirs(machineId: MachineId, dir: string): Promise<string[]> {
     if (this.demo) {
       this.machine(machineId);
       return demoDirNames(dir);
     }
-    return listRemoteDirs(this.sshDest(machineId), dir);
+    const machine = this.machine(machineId);
+    return listRemoteDirs(machine.sshDest, dir, machine.identityFile);
   }
 
   async createDir(machineId: MachineId, dir: string): Promise<string> {
@@ -192,7 +197,8 @@ export class SessionHub {
       this.machine(machineId);
       return dir;
     }
-    return createRemoteDir(this.sshDest(machineId), dir);
+    const machine = this.machine(machineId);
+    return createRemoteDir(machine.sshDest, dir, machine.identityFile);
   }
 
   stop(): void {

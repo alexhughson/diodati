@@ -15,7 +15,9 @@ type ConversationResponse = {
 };
 
 export async function shelleyGetJson<T>(machine: Machine, path: string): Promise<T> {
-  const result = await runSsh(machine.sshDest, remoteCurlGet(path));
+  const result = await runSsh(machine.sshDest, remoteCurlGet(path), {
+    identityFile: machine.identityFile,
+  });
   const stdout = requireOk(result, `shelley GET ${path} on ${machine.id}`);
   if (stdout.trim().length === 0) {
     throw new Error(`shelley GET ${path} on ${machine.id} returned empty body`);
@@ -26,6 +28,7 @@ export async function shelleyGetJson<T>(machine: Machine, path: string): Promise
 export async function shelleyPostJson<T>(machine: Machine, path: string, body: unknown): Promise<T> {
   const result = await runSsh(machine.sshDest, remoteCurlPost(path), {
     stdin: JSON.stringify(body),
+    identityFile: machine.identityFile,
   });
   const stdout = requireOk(result, `shelley POST ${path} on ${machine.id}`);
   const trimmed = stdout.trim();
@@ -43,7 +46,9 @@ export async function shelleyPostJson<T>(machine: Machine, path: string, body: u
 }
 
 export async function machineHomeDir(machine: Machine): Promise<string | null> {
-  const result = await runSsh(machine.sshDest, 'printf %s "$HOME"');
+  const result = await runSsh(machine.sshDest, 'printf %s "$HOME"', {
+    identityFile: machine.identityFile,
+  });
   const home = requireOk(result, `home dir on ${machine.id}`).trim();
   if (home.length === 0) {
     return null;

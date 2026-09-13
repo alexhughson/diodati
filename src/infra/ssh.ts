@@ -1,12 +1,19 @@
 import { exeIdentityArgs } from "@domain/exeAccount";
 import { folderName, normalizeDir } from "@domain/remotePath";
 import { spawn } from "node:child_process";
+import { createHash } from "node:crypto";
 import { appendFileSync, existsSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 
 const CONTROL_PATH = "/tmp/diodati-%C";
 const KNOWN_HOSTS = join(homedir(), ".ssh", "known_hosts");
+
+type SshCommandOptions = {
+  stdin?: string;
+  timeoutMs?: number;
+  identityFile?: string | null;
+};
 
 export type SshResult = {
   stdout: string;
@@ -34,9 +41,11 @@ function quoteRemote(value: string): string {
   return `'${value.replace(/'/g, `'\\''`)}'`;
 }
 
-export async function listRemoteDirs(dest: string, dir: string): Promise<string[]> {
+export async function listRemoteDirs(dest: string, dir: string, identityFile: string | null): Promise<string[]> {
   const path = normalizeDir(dir);
-  const result = await runSsh(dest, `find ${quoteRemote(path)} -mindepth 1 -maxdepth 1 -type d -print0`);
+  const result = await runSsh(dest, `find ${quoteRemote(path)} -mindepth 1 -maxdepth 1 -type d -print0`, {
+    identityFile,
+  });
   const stdout = requireOk(result, `list dirs ${path} on ${dest}`);
   const names: string[] = [];
   for (const entry of stdout.split("\0")) {
@@ -49,14 +58,26 @@ export async function listRemoteDirs(dest: string, dir: string): Promise<string[
   return names;
 }
 
-export async function createRemoteDir(dest: string, dir: string): Promise<string> {
+export async function createRemoteDir(dest: string, dir: string, identityFile: string | null): Promise<string> {
   const path = normalizeDir(dir);
-  const result = await runSsh(dest, `mkdir -p -- ${quoteRemote(path)}`);
+  const result = await runSsh(dest, `mkdir -p -- ${quoteRemote(path)}`, { identityFile });
   requireOk(result, `create dir ${path} on ${dest}`);
   return path;
 }
 
-function sshBaseArgs(dest: string): string[] {
+// %C is only local+remote+port+user. A first hop that used the wrong key
+// would otherwise reuse that socket and stay on the exe.dev lobby.
+export function sshControlPath(identityFile: string | null): string {
+  if (identityFile === null) {
+    return CONTROL_PATH;
+  }
+  const hash = createHash("sha1");
+  hash.update(identityFile);
+  const tag = hash.digest("hex").slice(0, 8);
+  return `${CONTROL_PATH}-${tag}`;
+}
+
+function sshBaseArgs(dest: string, identityFile: string | null): string[] {
   assertSshDest(dest);
   return [
     "-o",
@@ -66,9 +87,10 @@ function sshBaseArgs(dest: string): string[] {
     "-o",
     "ControlMaster=auto",
     "-o",
-    `ControlPath=${CONTROL_PATH}`,
+    `ControlPath=${sshControlPath(identityFile)}`,
     "-o",
     "ControlPersist=180",
+    ...exeIdentityArgs(identityFile),
     dest,
   ];
 }
@@ -101,9 +123,10 @@ export function ensureExeHostKnown(dest: string): void {
   appendFileSync(KNOWN_HOSTS, `${host} ${key}\n`);
 }
 
-export function runSsh(dest: string, remoteCommand: string, options?: { stdin?: string; timeoutMs?: number }): Promise<SshResult> {
+export function runSsh(dest: string, remoteCommand: string, options?: SshCommandOptions): Promise<SshResult> {
   ensureExeHostKnown(dest);
-  const args = [...sshBaseArgs(dest), remoteCommand];
+  const identityFile = options?.identityFile ?? null;
+  const args = [...sshBaseArgs(dest, identityFile), remoteCommand];
   return spawnSsh(args, options);
 }
 
@@ -125,7 +148,7 @@ export function runExeApi(
   return spawnSsh(args, options);
 }
 
-export function interactiveSshArgs(dest: string): string[] {
+export function interactiveSshArgs(dest: string, identityFile: string | null = null): string[] {
   assertSshDest(dest);
   return [
     "-o",
@@ -134,12 +157,13 @@ export function interactiveSshArgs(dest: string): string[] {
     "ConnectTimeout=20",
     "-o",
     "ControlMaster=no",
+    ...exeIdentityArgs(identityFile),
     "-tt",
     dest,
   ];
 }
 
-export function spawnSshProcess(dest: string, remoteCommand: string) {
+export function spawnSshProcess(dest: string, remoteCommand: string, identityFile: string | null = null) {
   ensureExeHostKnown(dest);
   // A long-lived stream must not own the ControlMaster socket. Killing that
   // process would exit ssh with 255 and break later short commands.
@@ -150,13 +174,14 @@ export function spawnSshProcess(dest: string, remoteCommand: string) {
     "ConnectTimeout=20",
     "-o",
     "ControlMaster=no",
+    ...exeIdentityArgs(identityFile),
     dest,
     remoteCommand,
   ];
   return spawn("ssh", args, { stdio: ["ignore", "pipe", "pipe"] });
 }
 
-function spawnSsh(args: string[], options?: { stdin?: string; timeoutMs?: number }): Promise<SshResult> {
+function spawnSsh(args: string[], options?: SshCommandOptions): Promise<SshResult> {
   return new Promise((resolve, reject) => {
     const child = spawn("ssh", args, { stdio: ["pipe", "pipe", "pipe"] });
     const stdoutChunks: Buffer[] = [];

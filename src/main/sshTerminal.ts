@@ -17,7 +17,7 @@ export class SshTerminal {
 
   constructor(private emit: (event: TerminalEvent) => void) {}
 
-  open(machineId: string, dest: string, cols: number, rows: number): void {
+  open(machineId: string, dest: string, identityFile: string | null, cols: number, rows: number): void {
     ensureExeHostKnown(dest);
     const safeCols = Math.max(2, cols);
     const safeRows = Math.max(2, rows);
@@ -26,7 +26,7 @@ export class SshTerminal {
       existing.pty.resize(safeCols, safeRows);
       return;
     }
-    const session = pty.spawn("ssh", interactiveSshArgs(dest), {
+    const session = pty.spawn("ssh", interactiveSshArgs(dest, identityFile), {
       name: "xterm-256color",
       cols: safeCols,
       rows: safeRows,

@@ -144,7 +144,7 @@ function bindIpc(hub: SessionHub, preview: PreviewController, terminal: SshTermi
   });
   ipcMain.handle("auth.previewLoggedIn", (_event, accountEmail: string) => previewLoggedIn(accountEmail));
   ipcMain.handle("machine.openTerminal", (_event, machineId: string, cols: number, rows: number) => {
-    terminal.open(machineId, hub.sshDest(machineId), cols, rows);
+    terminal.open(machineId, hub.sshDest(machineId), hub.identityFile(machineId), cols, rows);
   });
   ipcMain.handle("terminal.write", (_event, machineId: string, data: string) => {
     terminal.write(machineId, data);

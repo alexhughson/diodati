@@ -48,7 +48,7 @@ jobs:
       - name: Package and notarize Diodati.app
         env:
           CSC_LINK: ${{ secrets.CSC_LINK }}
-          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD || secrets.CSC_PASSWORD }}
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
@@ -63,8 +63,20 @@ jobs:
       - name: Publish download
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: macos
+          tag_name: macos-${{ github.sha }}
           name: Diodati for macOS
           make_latest: true
           files: release/Diodati-macOS.zip
           body: Apple Silicon build. Signed with Developer ID and notarized by Apple.
+      - name: Delete older macos releases
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh release list --limit 50 --json tagName,isLatest --jq '.[] | select(.isLatest == false) | .tagName' | while IFS= read -r tag; do
+            case "$tag" in
+              macos|macos-*)
+                gh release delete "$tag" --yes --cleanup-tag
+                ;;
+            esac
+          done

@@ -102,6 +102,26 @@ export async function createDraft(machine: Machine, options: ComposerOptions): P
   return threadFromRow(row, machine.id);
 }
 
+export async function startCompaction(
+  machine: Machine,
+  threadId: string,
+  options: ComposerOptions,
+  instructions: string,
+): Promise<void> {
+  const body: Record<string, unknown> = {
+    source_conversation_id: threadId,
+    model: options.model,
+    method: "compact",
+  };
+  if (options.cwd) {
+    body.cwd = options.cwd;
+  }
+  if (instructions.length > 0) {
+    body.instructions = instructions;
+  }
+  await shelleyPostJson(machine, "/api/conversations/distill-new-generation", body);
+}
+
 export async function sendChat(
   machine: Machine,
   threadId: string,

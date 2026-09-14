@@ -24,7 +24,7 @@ export type TerminalEvent =
 
 export type StreamEvent =
   | { kind: "messages"; threadId: ThreadId; messages: ProjectedMessage[] }
-  | { kind: "delta"; threadId: ThreadId; text: string }
+  | { kind: "delta"; threadId: ThreadId; type: "text" | "thinking"; text: string }
   | { kind: "working"; threadId: ThreadId; working: boolean }
   | { kind: "thread"; thread: Thread }
   | { kind: "error"; message: string };

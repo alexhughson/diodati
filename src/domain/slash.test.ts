@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { completeSlashCommand, matchingSlashCommands, slashToken } from "./slash";
+import { compactInstructions, completeSlashCommand, matchingSlashCommands, slashToken } from "./slash";
 
 test("a lone slash matches every command", () => {
   expect(slashToken("/")).toBe("");
@@ -21,4 +21,13 @@ test("text with a space is not a slash token", () => {
 test("complete adds a space only when the command takes args", () => {
   expect(completeSlashCommand({ command: "/model", description: "", takesArgs: true })).toBe("/model ");
   expect(completeSlashCommand({ command: "/clear", description: "", takesArgs: false })).toBe("/clear");
+});
+
+test("compactInstructions reads /compact and /distill and ignores other text", () => {
+  expect(compactInstructions("/compact")).toBe("");
+  expect(compactInstructions("/compact keep the API")).toBe("keep the API");
+  expect(compactInstructions("/distill")).toBe("");
+  expect(compactInstructions("/distill focus on tests")).toBe("focus on tests");
+  expect(compactInstructions("/compaction")).toBeNull();
+  expect(compactInstructions("please /compact")).toBeNull();
 });

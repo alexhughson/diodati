@@ -1,5 +1,6 @@
 import type { ChildProcess } from "node:child_process";
 import type { ShelleyMessageRow } from "@domain/message";
+import { liveStreamKind } from "@domain/streamDelta";
 import { threadFromRow, type ShelleyConversationRow } from "@domain/thread";
 import type { StreamEvent } from "@shared/ipc";
 import type { Machine, Thread, ThreadId } from "@shared/types";
@@ -76,10 +77,12 @@ export function openShelleyStream(
           working: frame.conversation_state.working,
         });
       }
-      if (frame.stream_delta?.text && frame.stream_delta.type === "text") {
+      const deltaKind = frame.stream_delta ? liveStreamKind(frame.stream_delta.type) : null;
+      if (deltaKind && frame.stream_delta?.text) {
         onEvent({
           kind: "delta",
           threadId: frameThreadId,
+          type: deltaKind,
           text: frame.stream_delta.text,
         });
       }

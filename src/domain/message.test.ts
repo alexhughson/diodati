@@ -123,6 +123,60 @@ test("tools stay out of the agent prose layout", () => {
   ]);
 });
 
+test("a compact in_progress row becomes a status notice", () => {
+  const message = projectMessage({
+    message_id: "d1",
+    conversation_id: "c1",
+    sequence_id: 10,
+    type: "agent",
+    created_at: "2026-09-14T12:00:00Z",
+    user_data: JSON.stringify({
+      distill_status: "in_progress",
+      source_slug: "configure-models",
+      new_generation: "true",
+      distill_method: "compact",
+    }),
+    llm_data: JSON.stringify({
+      Content: [{ Type: 2, Text: "Distilling conversation…" }],
+    }),
+  });
+  expect(message.blocks).toEqual([{ kind: "notice", text: 'Compacting conversation "configure-models"…' }]);
+});
+
+test("a finished compact hides the in_progress notice", () => {
+  const messages = projectMessages([
+    {
+      message_id: "d1",
+      conversation_id: "c1",
+      sequence_id: 10,
+      type: "agent",
+      created_at: "2026-09-14T12:00:00Z",
+      user_data: JSON.stringify({
+        distill_status: "in_progress",
+        source_slug: "configure-models",
+        new_generation: "true",
+        distill_method: "compact",
+      }),
+    },
+    {
+      message_id: "d2",
+      conversation_id: "c1",
+      sequence_id: 11,
+      type: "agent",
+      created_at: "2026-09-14T12:01:00Z",
+      user_data: JSON.stringify({
+        distill_status: "complete",
+        source_slug: "configure-models",
+        new_generation: "true",
+        distill_method: "compact",
+      }),
+    },
+  ]);
+  expect(messages.map((item) => item.blocks)).toEqual([
+    [{ kind: "notice", text: 'Compacted from "configure-models"' }],
+  ]);
+});
+
 test("adjacent thoughts join outside the agent prose layout", () => {
   expect(
     layoutMessage([

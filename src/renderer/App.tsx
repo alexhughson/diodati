@@ -42,6 +42,7 @@ export function App() {
   const [error, setError] = useState<string | null>(null);
   const [working, setWorking] = useState(false);
   const [liveDelta, setLiveDelta] = useState("");
+  const [liveThought, setLiveThought] = useState("");
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewLoggedIn, setPreviewLoggedIn] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -185,11 +186,16 @@ export function App() {
         if (thread && event.threadId === thread.id) {
           setMessages(event.messages);
           setLiveDelta("");
+          setLiveThought("");
         }
         return;
       }
       if (event.kind === "delta") {
         if (thread && event.threadId === thread.id) {
+          if (event.type === "thinking") {
+            setLiveThought((current) => current + event.text);
+            return;
+          }
           setLiveDelta((current) => current + event.text);
         }
         return;
@@ -276,6 +282,7 @@ export function App() {
     setThread(null);
     setMessages([]);
     setLiveDelta("");
+    setLiveThought("");
     setWorking(false);
     setError(null);
     setComposing(false);
@@ -355,6 +362,7 @@ export function App() {
     setSelectedMachineId(next.machineId);
     setThread(next);
     setLiveDelta("");
+    setLiveThought("");
     setMessages([]);
     if (next.model) {
       setModelId(next.model);
@@ -594,6 +602,7 @@ export function App() {
               draftCwd={draftCwd}
               messages={messages}
               liveDelta={liveDelta}
+              liveThought={liveThought}
               error={error}
               onNewThread={() => {
                 if (selectedMachineId) {
@@ -634,6 +643,9 @@ export function App() {
                   }
                 }}
                 onThinking={setThinkingLevel}
+                onRefreshModels={() => {
+                  void ensureModels(selectedMachineId);
+                }}
                 onSend={(message) => void send(message)}
                 onCancel={() => void cancel()}
               />

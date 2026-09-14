@@ -8,6 +8,7 @@ type Props = {
   thinkingLevel: ReasoningLevel | null;
   onModel: (modelId: string) => void;
   onThinking: (level: ReasoningLevel | null) => void;
+  onRefreshModels: () => void;
 };
 
 export function ModelPicker(props: Props) {
@@ -40,7 +41,16 @@ export function ModelPicker(props: Props) {
                 <span className="src">{model.source}</span>
               </button>
             ))}
-            <button className="pop-item" onClick={() => setMore(!more)}>
+            <button
+              className="pop-item"
+              onClick={() => {
+                const next = !more;
+                setMore(next);
+                if (next) {
+                  props.onRefreshModels();
+                }
+              }}
+            >
               {more ? "fewer models" : "more models"}
             </button>
           </div>

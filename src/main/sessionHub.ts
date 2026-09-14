@@ -11,6 +11,7 @@ import {
 } from "@domain/demo";
 import { projectMessages, type ShelleyMessageRow } from "@domain/message";
 import { modelSwitchCommand } from "@domain/model";
+import { compactInstructions } from "@domain/slash";
 import { requireMachine } from "@domain/machine";
 import { identityFilesFromKeys } from "@domain/exeAccount";
 import { createExeMachine, exeMagicLoginUrl, listExeMachines, probeDiscoveredAccounts } from "@infra/exeLs";
@@ -24,6 +25,7 @@ import {
   machineHomeDir,
   loadThreadMessages,
   sendChat,
+  startCompaction,
 } from "@infra/shelleyRemote";
 import { openShelleyStream, type StreamHandle } from "@infra/shelleyStream";
 import type { StreamEvent, ThreadOpened } from "@shared/ipc";
@@ -147,6 +149,11 @@ export class SessionHub {
     const machine = this.machine(machineId);
     if (this.streamThreadId !== threadId) {
       this.replaceStream(machine, threadId);
+    }
+    const instructions = compactInstructions(message);
+    if (instructions !== null) {
+      await startCompaction(machine, threadId, options, instructions);
+      return;
     }
     await sendChat(machine, threadId, message, options);
   }

@@ -172,6 +172,87 @@ function noticeText(row: ShelleyMessageRow): string {
   return JSON.stringify(user);
 }
 
+function stringField(user: Record<string, unknown> | null, key: string): string {
+  if (!user) {
+    return "";
+  }
+  const value = user[key];
+  if (typeof value !== "string") {
+    return "";
+  }
+  return value;
+}
+
+function distillStatus(row: ShelleyMessageRow): string | null {
+  const user = asRecord(parseJson(row.user_data));
+  const status = stringField(user, "distill_status");
+  if (status.length === 0) {
+    return null;
+  }
+  return status;
+}
+
+function distillKey(row: ShelleyMessageRow): string {
+  const user = asRecord(parseJson(row.user_data));
+  const slug = stringField(user, "source_slug");
+  const generation = stringField(user, "new_generation");
+  return `${slug}\0${generation}`;
+}
+
+function distillNoticeText(row: ShelleyMessageRow): string | null {
+  const status = distillStatus(row);
+  if (status === null) {
+    return null;
+  }
+  const user = asRecord(parseJson(row.user_data));
+  const compact = stringField(user, "distill_method") === "compact";
+  const slug = stringField(user, "source_slug");
+  const gerund = compact ? "Compacting" : "Distilling";
+  const past = compact ? "Compacted" : "Distilled";
+  const noun = compact ? "Compaction" : "Distillation";
+  if (status === "in_progress") {
+    if (slug.length > 0) {
+      return `${gerund} conversation "${slug}"…`;
+    }
+    return `${gerund} conversation…`;
+  }
+  if (status === "complete") {
+    if (slug.length > 0) {
+      return `${past} from "${slug}"`;
+    }
+    return `${past} from prior conversation`;
+  }
+  if (status === "error") {
+    if (slug.length > 0) {
+      return `${noun} failed for "${slug}"`;
+    }
+    return `${noun} failed`;
+  }
+  return `${noun} ${status}`;
+}
+
+function supersededDistillInProgress(rows: ShelleyMessageRow[]): Set<string> {
+  const lastInProgress = new Map<string, string>();
+  const hidden = new Set<string>();
+  for (const row of rows) {
+    const status = distillStatus(row);
+    if (status === null) {
+      continue;
+    }
+    const key = distillKey(row);
+    if (status === "in_progress") {
+      lastInProgress.set(key, row.message_id);
+      continue;
+    }
+    const prior = lastInProgress.get(key);
+    if (prior) {
+      hidden.add(prior);
+      lastInProgress.delete(key);
+    }
+  }
+  return hidden;
+}
+
 export function projectMessage(
   row: ShelleyMessageRow,
   toolResults?: Map<string, ToolResult>,
@@ -183,6 +264,17 @@ export function projectMessage(
   const lastSequence = lastSequenceId ?? row.sequence_id;
   const blocks: ChatBlock[] = [];
   let role: ProjectedMessage["role"] = "other";
+  const distill = distillNoticeText(row);
+  if (distill) {
+    blocks.push({ kind: "notice", text: distill });
+    return {
+      id: row.message_id,
+      sequenceId: row.sequence_id,
+      role,
+      createdAt: row.created_at,
+      blocks,
+    };
+  }
 
   if (row.type === "user") {
     role = "user";
@@ -241,8 +333,12 @@ export function projectMessages(rows: ShelleyMessageRow[]): ProjectedMessage[] {
   const ordered = [...rows].sort((left, right) => left.sequence_id - right.sequence_id);
   const lastSequence = ordered[ordered.length - 1]?.sequence_id ?? 0;
   const toolResults = collectToolResults(ordered);
+  const hiddenDistill = supersededDistillInProgress(ordered);
   const projected: ProjectedMessage[] = [];
   for (const row of ordered) {
+    if (hiddenDistill.has(row.message_id)) {
+      continue;
+    }
     const message = projectMessage(row, toolResults, lastSequence);
     if (message.blocks.length === 0) {
       continue;
@@ -261,7 +357,8 @@ export type MessageSegment =
 export type MessageLayout =
   | { kind: "prose"; blocks: ChatBlock[] }
   | { kind: "tools"; tools: ToolBlock[] }
-  | { kind: "thinking"; text: string };
+  | { kind: "thinking"; text: string }
+  | { kind: "notice"; text: string };
 
 export function layoutMessage(blocks: ChatBlock[]): MessageLayout[] {
   const layouts: MessageLayout[] = [];
@@ -298,6 +395,12 @@ export function layoutMessage(blocks: ChatBlock[]): MessageLayout[] {
     if (segment.block.kind === "thinking") {
       flushProse();
       thoughts.push(segment.block.text);
+      continue;
+    }
+    if (segment.block.kind === "notice") {
+      flushProse();
+      flushThoughts();
+      layouts.push({ kind: "notice", text: segment.block.text });
       continue;
     }
     flushThoughts();

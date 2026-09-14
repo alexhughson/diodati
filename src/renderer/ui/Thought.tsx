@@ -2,10 +2,11 @@ import { useState } from "react";
 
 type Props = {
   text: string;
+  startOpen?: boolean;
 };
 
 export function Thought(props: Props) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(props.startOpen === true);
   const summary = firstLine(props.text);
 
   return (

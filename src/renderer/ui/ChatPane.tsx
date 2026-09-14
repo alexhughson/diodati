@@ -16,6 +16,7 @@ type Props = {
   draftCwd: string | null;
   messages: ProjectedMessage[];
   liveDelta: string;
+  liveThought: string;
   error: string | null;
   onNewThread: () => void;
   onOpenTerminal: () => void;
@@ -64,7 +65,7 @@ export function ChatPane(props: Props) {
       return;
     }
     node.scrollTop = node.scrollHeight;
-  }, [props.messages, props.liveDelta]);
+  }, [props.messages, props.liveDelta, props.liveThought]);
 
   const title = props.thread ? threadTitle(props.thread) : props.composing ? "New thread" : "Diodati";
   const cwd = props.thread?.cwd ?? props.draftCwd;
@@ -141,6 +142,13 @@ export function ChatPane(props: Props) {
                   </div>
                 );
               }
+              if (part.kind === "notice") {
+                return (
+                  <div key={`${message.id}-notice-${index}`} className="notice">
+                    {part.text}
+                  </div>
+                );
+              }
               if (part.kind === "tools") {
                 return (
                   <div key={`${message.id}-tools-${index}`} className="tool-strip">
@@ -171,6 +179,11 @@ export function ChatPane(props: Props) {
               );
             });
           })}
+          {props.liveThought ? (
+            <div className="thought-strip">
+              <Thought text={props.liveThought} startOpen />
+            </div>
+          ) : null}
           {props.liveDelta ? (
             <article className="bubble">
               <div className="meta">agent</div>

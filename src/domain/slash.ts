@@ -40,3 +40,20 @@ export function completeSlashCommand(command: SlashCommand): string {
   }
   return command.command;
 }
+
+// Shelley handles /model on the chat endpoint. /compact and /distill are
+// client-only: the official UI POSTs distill-new-generation instead of chat.
+export function compactInstructions(message: string): string | null {
+  const trimmed = message.trim();
+  const commands = ["/compact", "/distill"];
+  for (const command of commands) {
+    if (trimmed === command) {
+      return "";
+    }
+    const prefix = `${command} `;
+    if (trimmed.startsWith(prefix)) {
+      return trimmed.slice(prefix.length).trim();
+    }
+  }
+  return null;
+}

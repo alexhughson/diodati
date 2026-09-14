@@ -18,6 +18,7 @@ type Props = {
   disabled: boolean;
   onModel: (modelId: string) => void;
   onThinking: (level: ReasoningLevel | null) => void;
+  onRefreshModels: () => void;
   onCwd: (cwd: string) => void;
   onSend: (text: string) => void;
   onCancel: () => void;
@@ -118,6 +119,7 @@ export function Composer(props: Props) {
               thinkingLevel={props.thinkingLevel}
               onModel={props.onModel}
               onThinking={props.onThinking}
+              onRefreshModels={props.onRefreshModels}
             />
             {props.showFolder ? (
               <FolderPicker

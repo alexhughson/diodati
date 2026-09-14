@@ -51,19 +51,7 @@ jobs:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-        run: |
-          set -euo pipefail
-          missing=""
-          [ -n "${CSC_LINK:-}" ] || missing="${missing} CSC_LINK"
-          [ -n "${CSC_KEY_PASSWORD:-}" ] || missing="${missing} CSC_KEY_PASSWORD"
-          [ -n "${APPLE_ID:-}" ] || missing="${missing} APPLE_ID"
-          [ -n "${APPLE_APP_SPECIFIC_PASSWORD:-}" ] || missing="${missing} APPLE_APP_SPECIFIC_PASSWORD"
-          [ -n "${APPLE_TEAM_ID:-}" ] || missing="${missing} APPLE_TEAM_ID"
-          if [ -n "${missing}" ]; then
-            echo "missing secrets:${missing}"
-            exit 1
-          fi
-          bun run package:mac:signed
+        run: bash scripts/ci-sign-mac.sh
       - name: Check the app name
         run: bash scripts/check-mac-app.sh signed
       - uses: actions/upload-artifact@v4

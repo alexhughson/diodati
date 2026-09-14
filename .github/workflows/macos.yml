@@ -6,12 +6,12 @@ on:
       - main
   pull_request:
 
-permissions:
-  contents: write
-
 jobs:
   package:
+    if: github.event_name == 'pull_request'
     runs-on: macos-latest
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v4
       - uses: oven-sh/setup-bun@v2
@@ -22,38 +22,60 @@ jobs:
       - name: Package Diodati.app
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: false
+          CSC_FOR_PULL_REQUEST: true
         run: bun run package:mac
       - name: Check the app name
+        run: bash scripts/check-mac-app.sh adhoc
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Diodati-macOS
+          path: release/Diodati-macOS.zip
+          if-no-files-found: error
+
+  release:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: macos-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - run: bun install
+      - run: bun test src/domain
+      - name: Package and notarize Diodati.app
+        env:
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: |
-          app=release/mac-arm64/Diodati.app
-          if [ ! -d "$app" ]; then
-            app=release/mac/Diodati.app
+          set -euo pipefail
+          missing=""
+          [ -n "${CSC_LINK:-}" ] || missing="${missing} CSC_LINK"
+          [ -n "${CSC_KEY_PASSWORD:-}" ] || missing="${missing} CSC_KEY_PASSWORD"
+          [ -n "${APPLE_ID:-}" ] || missing="${missing} APPLE_ID"
+          [ -n "${APPLE_APP_SPECIFIC_PASSWORD:-}" ] || missing="${missing} APPLE_APP_SPECIFIC_PASSWORD"
+          [ -n "${APPLE_TEAM_ID:-}" ] || missing="${missing} APPLE_TEAM_ID"
+          if [ -n "${missing}" ]; then
+            echo "missing secrets:${missing}"
+            exit 1
           fi
-          plist="$app/Contents/Info.plist"
-          name=$(plutil -extract CFBundleName raw "$plist")
-          display=$(plutil -extract CFBundleDisplayName raw "$plist")
-          exec_name=$(plutil -extract CFBundleExecutable raw "$plist")
-          echo "CFBundleName=$name"
-          echo "CFBundleDisplayName=$display"
-          echo "CFBundleExecutable=$exec_name"
-          test "$name" = "Diodati"
-          test "$display" = "Diodati"
-          test "$exec_name" = "Diodati"
-          codesign --verify --deep --strict "$app"
-          identifier=$(codesign -d --verbose=2 "$app" 2>&1 | awk -F= '/^Identifier=/{print $2}')
-          echo "Identifier=$identifier"
-          test "$identifier" = "app.diodati.desktop"
+          bun run package:mac:signed
+      - name: Check the app name
+        run: bash scripts/check-mac-app.sh signed
       - uses: actions/upload-artifact@v4
         with:
           name: Diodati-macOS
           path: release/Diodati-macOS.zip
           if-no-files-found: error
       - name: Publish download
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: macos
           name: Diodati for macOS
           make_latest: true
           files: release/Diodati-macOS.zip
-          body: Apple Silicon build. Not notarized by Apple. If macOS blocks the first open, use System Settings → Privacy & Security → Open Anyway.
+          body: Apple Silicon build. Signed with Developer ID and notarized by Apple.

@@ -7,3 +7,6 @@ release/
 .semble/
 .vite/
 *.tsbuildinfo
+.env
+*.p12
+*.pfx

@@ -10,7 +10,8 @@
     "demo": "electron-vite dev -- --demo",
     "screenshot": "electron-vite build && electron . --demo --screenshot",
     "build": "electron-vite build",
-    "package:mac": "electron-vite build && CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --mac --arm64 --publish never",
+    "package:mac": "electron-vite build && CSC_IDENTITY_AUTO_DISCOVERY=false env -u DEBUG -u CSC_LINK -u CSC_KEY_PASSWORD -u APPLE_ID -u APPLE_APP_SPECIFIC_PASSWORD -u APPLE_TEAM_ID -u APPLE_API_KEY -u APPLE_API_KEY_ID -u APPLE_API_ISSUER electron-builder --mac --arm64 --publish never --config.mac.identity=-",
+    "package:mac:signed": "electron-vite build && env -u DEBUG electron-builder --mac --arm64 --publish never --config.forceCodeSigning=true",
     "test": "bun test src/domain"
   },
   "dependencies": {

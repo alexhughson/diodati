@@ -15,8 +15,8 @@ afterPack: scripts/after-pack.cjs
 mac:
   category: public.app-category.developer-tools
   icon: resources/icon.png
-  identity: "-"
-  hardenedRuntime: false
+  hardenedRuntime: true
+  gatekeeperAssess: false
   artifactName: Diodati-macOS.zip
   target:
     - target: zip

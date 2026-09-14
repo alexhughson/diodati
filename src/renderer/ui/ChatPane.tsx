@@ -159,6 +159,7 @@ export function ChatPane(props: Props) {
                         outputText={part.tools[0].outputText}
                         running={part.tools[0].running}
                         errored={part.tools[0].errored}
+                        patch={part.tools[0].patch}
                       />
                     ) : (
                       <ToolGroup tools={part.tools} />
@@ -218,6 +219,7 @@ function renderLoneBlock(block: ChatBlock, index: number) {
         outputText={block.outputText}
         running={block.running}
         errored={block.errored}
+        patch={block.patch}
       />
     );
   }

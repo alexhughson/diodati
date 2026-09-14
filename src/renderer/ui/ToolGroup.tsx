@@ -30,6 +30,7 @@ export function ToolGroup(props: Props) {
               outputText={tool.outputText}
               running={tool.running}
               errored={tool.errored}
+              patch={tool.patch}
             />
           ))}
         </div>

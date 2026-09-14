@@ -1019,6 +1019,52 @@ button {
   text-transform: uppercase;
 }
 
+.patch-path {
+  display: block;
+  color: var(--text);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  word-break: break-all;
+  white-space: pre-wrap;
+}
+
+.patch-diff {
+  display: flex;
+  flex-direction: column;
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-panel);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  line-height: 1.45;
+  white-space: pre;
+}
+
+.patch-line {
+  display: block;
+  padding: 0 8px;
+  white-space: pre;
+}
+
+.patch-line.add {
+  color: var(--ok);
+  background: color-mix(in srgb, var(--ok) 14%, transparent);
+}
+
+.patch-line.del {
+  color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 14%, transparent);
+}
+
+.patch-line.meta {
+  color: var(--faint);
+}
+
+.patch-line.ctx {
+  color: var(--muted);
+}
+
 .tool-group {
   margin-top: 8px;
 }

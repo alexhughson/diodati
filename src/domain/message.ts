@@ -1,4 +1,5 @@
 import type { ChatBlock, ProjectedMessage } from "@shared/types";
+import { patchViewForTool } from "./patch";
 
 export type ShelleyMessageRow = {
   message_id: string;
@@ -34,6 +35,7 @@ type LlmContent = {
 type ToolResult = {
   text: string;
   errored: boolean;
+  display: unknown;
 };
 
 type LlmMessage = {
@@ -83,16 +85,18 @@ function toolResultText(contents: LlmContent[] | undefined): string {
 
 function toolResultFromContent(content: LlmContent): ToolResult {
   const fromBlocks = toolResultText(content.ToolResult);
+  const display = content.Display ?? null;
+  const errored = content.ToolError === true;
   if (fromBlocks.length > 0) {
-    return { text: fromBlocks, errored: content.ToolError === true };
+    return { text: fromBlocks, errored, display };
   }
   if (content.Text && content.Text.length > 0) {
-    return { text: content.Text, errored: content.ToolError === true };
+    return { text: content.Text, errored, display };
   }
-  if (content.Display !== undefined && content.Display !== null) {
-    return { text: textFromUnknown(content.Display), errored: content.ToolError === true };
+  if (display !== null) {
+    return { text: textFromUnknown(display), errored, display };
   }
-  return { text: "", errored: content.ToolError === true };
+  return { text: "", errored, display };
 }
 
 function collectToolResults(rows: ShelleyMessageRow[]): Map<string, ToolResult> {
@@ -298,15 +302,34 @@ export function projectMessage(
       } else if (content.Type === CONTENT_TOOL_USE || content.Type === CONTENT_SERVER_TOOL) {
         const toolId = content.ID ?? "";
         const result = results.get(toolId);
-        blocks.push({
-          kind: "tool",
-          id: toolId,
-          name: content.ToolName ?? "tool",
-          inputText: textFromUnknown(content.ToolInput),
-          outputText: result?.text ?? "",
-          running: toolIsInFlight(Boolean(result), row.sequence_id, lastSequence, contents, index),
-          errored: result?.errored === true,
-        });
+        const name = content.ToolName ?? "tool";
+        const inputText = textFromUnknown(content.ToolInput);
+        const outputText = result?.text ?? "";
+        const running = toolIsInFlight(Boolean(result), row.sequence_id, lastSequence, contents, index);
+        const errored = result?.errored === true;
+        const patch = patchViewForTool(name, content.ToolInput, result?.display);
+        if (patch) {
+          blocks.push({
+            kind: "tool",
+            id: toolId,
+            name,
+            inputText,
+            outputText,
+            running,
+            errored,
+            patch,
+          });
+        } else {
+          blocks.push({
+            kind: "tool",
+            id: toolId,
+            name,
+            inputText,
+            outputText,
+            running,
+            errored,
+          });
+        }
       }
       index += 1;
     }

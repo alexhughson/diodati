@@ -190,6 +190,105 @@ test("adjacent thoughts join outside the agent prose layout", () => {
   ]);
 });
 
+test("a running patch uses the tool input until Display arrives", () => {
+  const message = projectMessage({
+    message_id: "patch-running",
+    conversation_id: "cYGP7OT",
+    sequence_id: 10,
+    type: "agent",
+    created_at: "2026-09-11T12:00:00Z",
+    llm_data: JSON.stringify({
+      Content: [
+        {
+          Type: 5,
+          ID: "call_running_patch",
+          ToolName: "patch",
+          ToolInput: {
+            path: "requirements.txt",
+            patches: [
+              {
+                operation: "overwrite",
+                oldText: "",
+                newText: "starlette==1.6.0\n",
+              },
+            ],
+          },
+        },
+      ],
+    }),
+  });
+  const tool = message.blocks[0];
+  if (!tool || tool.kind !== "tool") {
+    throw new Error("expected a projected patch tool");
+  }
+  expect(tool.running).toBe(true);
+  expect(tool.patch?.path).toBe("requirements.txt");
+  expect(tool.patch?.added).toBe(1);
+  expect(tool.patch?.lines).toEqual([{ kind: "add", text: "+starlette==1.6.0" }]);
+});
+
+test("a patch tool result shows the Display diff, not the input JSON", () => {
+  const messages = projectMessages([
+    {
+      message_id: "238934ef-f4bd-452d-adb9-099d5d0b4be5",
+      conversation_id: "cYGP7OT",
+      sequence_id: 10,
+      type: "agent",
+      created_at: "2026-09-11T12:00:00Z",
+      llm_data: JSON.stringify({
+        Content: [
+          {
+            Type: 5,
+            ID: "call_OnaH5Bm0IICFaEZbttVCb1nN",
+            ToolName: "patch",
+            ToolInput: {
+              path: "requirements.txt",
+              patches: [
+                {
+                  operation: "overwrite",
+                  oldText: "",
+                  newText: "starlette==1.6.0\nuvicorn==0.52.4\n",
+                },
+              ],
+            },
+          },
+        ],
+      }),
+    },
+    {
+      message_id: "patch-result-1",
+      conversation_id: "cYGP7OT",
+      sequence_id: 11,
+      type: "user",
+      created_at: "2026-09-11T12:00:01Z",
+      llm_data: JSON.stringify({
+        Content: [
+          {
+            Type: 6,
+            ToolUseID: "call_OnaH5Bm0IICFaEZbttVCb1nN",
+            ToolResult: [{ Type: 2, Text: "<patches_applied>all</patches_applied>\n" }],
+            Display: {
+              path: "/home/exedev/textbook-search/requirements.txt",
+              diff: "--- /home/exedev/textbook-search/requirements.txt\n+++ /home/exedev/textbook-search/requirements.txt\n@@ -0,0 +1,8 @@\n+starlette==1.6.0\n+uvicorn==0.52.4\n+htpy==26.5.1\n+python-multipart==0.0.32\n+pymupdf==1.28.2\n+sqlite-vec==0.1.9\n+fastembed==0.8.0\n+httpx==0.28.1\n",
+            },
+          },
+        ],
+      }),
+    },
+  ]);
+  expect(messages).toHaveLength(1);
+  const tool = messages[0]?.blocks[0];
+  if (!tool || tool.kind !== "tool") {
+    throw new Error("expected a projected patch tool");
+  }
+  expect(tool.name).toBe("patch");
+  expect(tool.outputText).toBe("<patches_applied>all</patches_applied>\n");
+  expect(tool.patch?.path).toBe("/home/exedev/textbook-search/requirements.txt");
+  expect(tool.patch?.added).toBe(8);
+  expect(tool.patch?.deleted).toBe(0);
+  expect(tool.patch?.lines[3]).toEqual({ kind: "add", text: "+starlette==1.6.0" });
+});
+
 test("tool result on the next user message attaches to the agent tool", () => {
   const messages = projectMessages([
     {

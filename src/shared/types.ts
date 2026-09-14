@@ -76,6 +76,20 @@ export type Model = {
   defaultReasoningLevel: ReasoningLevel | null;
 };
 
+export type DiffLineKind = "add" | "del" | "ctx" | "meta";
+
+export type DiffLine = {
+  kind: DiffLineKind;
+  text: string;
+};
+
+export type PatchView = {
+  path: string;
+  added: number;
+  deleted: number;
+  lines: DiffLine[];
+};
+
 export type ChatBlock =
   | { kind: "text"; text: string }
   | { kind: "thinking"; text: string }
@@ -87,6 +101,7 @@ export type ChatBlock =
       outputText: string;
       running: boolean;
       errored: boolean;
+      patch?: PatchView;
     }
   | { kind: "error"; text: string }
   | { kind: "notice"; text: string };

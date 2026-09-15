@@ -125,6 +125,7 @@ export const demoModels: Model[] = [
     supportsReasoning: true,
     reasoningLevels: ["low", "medium", "high"],
     defaultReasoningLevel: "medium",
+    maxContextTokens: 200000,
   },
   {
     id: "gpt-5.6-sol",
@@ -136,6 +137,7 @@ export const demoModels: Model[] = [
     supportsReasoning: true,
     reasoningLevels: ["low", "medium", "high"],
     defaultReasoningLevel: "medium",
+    maxContextTokens: 400000,
   },
 ];
 

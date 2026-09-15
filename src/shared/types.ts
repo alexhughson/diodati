@@ -74,6 +74,7 @@ export type Model = {
   supportsReasoning: boolean;
   reasoningLevels: ReasoningLevel[];
   defaultReasoningLevel: ReasoningLevel | null;
+  maxContextTokens: number;
 };
 
 export type DiffLineKind = "add" | "del" | "ctx" | "meta";

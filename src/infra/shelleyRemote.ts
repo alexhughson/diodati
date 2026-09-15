@@ -12,6 +12,7 @@ type Snapshot = {
 type ConversationResponse = {
   messages?: ShelleyMessageRow[];
   conversation?: ShelleyConversationRow;
+  context_window_size?: number;
 };
 
 export async function shelleyGetJson<T>(machine: Machine, path: string): Promise<T> {
@@ -76,6 +77,7 @@ export async function listMachineModels(machine: Machine): Promise<Model[]> {
 export async function loadThreadMessages(machine: Machine, threadId: string): Promise<{
   thread: Thread;
   rows: ShelleyMessageRow[];
+  contextWindowSize: number;
 }> {
   const payload = await shelleyGetJson<ConversationResponse>(machine, `/api/conversation/${threadId}`);
   if (!payload.conversation) {
@@ -84,6 +86,7 @@ export async function loadThreadMessages(machine: Machine, threadId: string): Pr
   return {
     thread: threadFromRow(payload.conversation, machine.id),
     rows: payload.messages ?? [],
+    contextWindowSize: payload.context_window_size ?? 0,
   };
 }
 
@@ -99,6 +102,15 @@ export async function createDraft(machine: Machine, options: ComposerOptions): P
     body.conversation_options = { thinking_level: options.thinkingLevel };
   }
   const row = await shelleyPostJson<ShelleyConversationRow>(machine, "/api/conversations/draft", body);
+  return threadFromRow(row, machine.id);
+}
+
+export async function startNewGeneration(machine: Machine, threadId: string): Promise<Thread> {
+  const row = await shelleyPostJson<ShelleyConversationRow>(
+    machine,
+    `/api/conversation/${threadId}/new-generation`,
+    {},
+  );
   return threadFromRow(row, machine.id);
 }
 

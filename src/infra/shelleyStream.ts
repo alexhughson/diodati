@@ -16,6 +16,7 @@ type StreamFrame = {
   conversation?: ShelleyConversationRow;
   conversation_state?: { conversation_id: string; working: boolean; model?: string };
   stream_delta?: { type: string; text: string };
+  context_window_size?: number;
   heartbeat?: boolean;
 };
 
@@ -84,6 +85,13 @@ export function openShelleyStream(
           threadId: frameThreadId,
           type: deltaKind,
           text: frame.stream_delta.text,
+        });
+      }
+      if (typeof frame.context_window_size === "number") {
+        onEvent({
+          kind: "context",
+          threadId: frameThreadId,
+          tokens: frame.context_window_size,
         });
       }
     }

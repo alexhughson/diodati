@@ -10,6 +10,7 @@ export type ShelleyModelRow = {
   supports_reasoning?: boolean;
   reasoning_levels?: string[];
   default_reasoning_level?: string;
+  max_context_tokens?: number;
 };
 
 const LEVELS = new Set<ReasoningLevel>(["off", "minimal", "low", "medium", "high", "xhigh", "max"]);
@@ -45,6 +46,7 @@ export function modelFromRow(row: ShelleyModelRow): Model {
     supportsReasoning: row.supports_reasoning === true,
     reasoningLevels,
     defaultReasoningLevel: parseReasoningLevel(row.default_reasoning_level),
+    maxContextTokens: row.max_context_tokens ?? 0,
   };
 }
 
@@ -68,6 +70,23 @@ export function defaultModel(models: Model[]): Model | null {
     return marked;
   }
   return models[0] ?? null;
+}
+
+export function modelOnList(models: Model[], modelId: string): Model | null {
+  for (const model of models) {
+    if (model.id === modelId) {
+      return model;
+    }
+  }
+  return null;
+}
+
+export function pickModelOnList(models: Model[], preferredId: string): Model | null {
+  const preferred = modelOnList(models, preferredId);
+  if (preferred) {
+    return preferred;
+  }
+  return defaultModel(models);
 }
 
 export function modelSwitchCommand(modelId: string, thinkingLevel: ReasoningLevel | null): string {

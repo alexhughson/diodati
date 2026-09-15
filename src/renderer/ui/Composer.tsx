@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { contextUsageLevel, formatTokenCount } from "@domain/contextUsage";
 import { completeSlashCommand, matchingSlashCommands, slashToken } from "@domain/slash";
 import type { FolderChoice } from "@domain/catalog";
 import type { Model, ReasoningLevel } from "@shared/types";
@@ -22,6 +23,12 @@ type Props = {
   onCwd: (cwd: string) => void;
   onSend: (text: string) => void;
   onCancel: () => void;
+  contextTokens: number;
+  maxContextTokens: number;
+  showContextPrompt: boolean;
+  onCompact: () => void;
+  onNewGeneration: () => void;
+  onDismissContextPrompt: () => void;
 };
 
 export function Composer(props: Props) {
@@ -33,6 +40,8 @@ export function Composer(props: Props) {
   const [dismissed, setDismissed] = useState(false);
   const showMenu = token !== null && matches.length > 0 && !exactAlone && !dismissed && !props.disabled;
   const active = matches.length === 0 ? 0 : Math.min(highlight, matches.length - 1);
+  const usageLevel = contextUsageLevel(props.contextTokens, props.maxContextTokens);
+  const showContextPrompt = props.showContextPrompt && usageLevel !== "";
 
   useEffect(() => {
     setHighlight(0);
@@ -58,6 +67,25 @@ export function Composer(props: Props) {
 
   return (
     <div className="composer">
+      {showContextPrompt ? (
+        <div className={`context-prompt ${usageLevel}`}>
+          <div className="context-prompt-copy">
+            <p>This conversation is getting long.</p>
+            <p>Compact it or start a new generation.</p>
+          </div>
+          <div className="context-prompt-actions">
+            <button type="button" disabled={props.working} onClick={props.onCompact}>
+              Compact conversation
+            </button>
+            <button type="button" disabled={props.working} onClick={props.onNewGeneration}>
+              Start new generation
+            </button>
+            <button type="button" className="ghost" onClick={props.onDismissContextPrompt}>
+              hide
+            </button>
+          </div>
+        </div>
+      ) : null}
       <div className="composer-box">
         {showMenu ? (
           <div className="slash-menu" role="listbox" aria-label="commands">
@@ -130,11 +158,20 @@ export function Composer(props: Props) {
                 onCwd={props.onCwd}
               />
             ) : null}
+            <span
+              className={usageLevel ? `context-size ${usageLevel}` : "context-size"}
+              title={contextSizeTitle(props.contextTokens, props.maxContextTokens)}
+            >
+              {formatTokenCount(props.contextTokens)}
+            </span>
           </div>
           {props.working ? (
-            <button className="ghost" onClick={props.onCancel}>
-              stop
-            </button>
+            <div className="working-group">
+              <WorkingLabel />
+              <button className="ghost" onClick={props.onCancel}>
+                stop
+              </button>
+            </div>
           ) : (
             <button className="send" onClick={submit} disabled={props.disabled || text.trim().length === 0}>
               send
@@ -144,4 +181,34 @@ export function Composer(props: Props) {
       </div>
     </div>
   );
+}
+
+function WorkingLabel() {
+  const text = "Agent working...";
+  const [index, setIndex] = useState(0);
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      setIndex((current) => (current + 1) % text.length);
+    }, 100);
+    return () => {
+      window.clearInterval(timer);
+    };
+  }, []);
+  return (
+    <span className="working-label" aria-live="polite">
+      {text.split("").map((char, charIndex) => (
+        <span key={charIndex} className={charIndex === index ? "working-letter-on" : undefined}>
+          {char}
+        </span>
+      ))}
+    </span>
+  );
+}
+
+function contextSizeTitle(tokens: number, maxContextTokens: number): string {
+  const used = formatTokenCount(tokens);
+  if (maxContextTokens > 0) {
+    return `Context on this machine: ${used} of ${formatTokenCount(maxContextTokens)}`;
+  }
+  return `Context on this machine: ${used}`;
 }

@@ -16,6 +16,7 @@ import type {
 export type ThreadOpened = {
   thread: Thread;
   messages: ProjectedMessage[];
+  contextWindowSize: number;
 };
 
 export type TerminalEvent =
@@ -27,6 +28,7 @@ export type StreamEvent =
   | { kind: "delta"; threadId: ThreadId; type: "text" | "thinking"; text: string }
   | { kind: "working"; threadId: ThreadId; working: boolean }
   | { kind: "thread"; thread: Thread }
+  | { kind: "context"; threadId: ThreadId; tokens: number }
   | { kind: "error"; message: string };
 
 export type IpcApi = {
@@ -42,6 +44,7 @@ export type IpcApi = {
   sendChat: (machineId: MachineId, threadId: ThreadId, message: string, options: ComposerOptions) => Promise<void>;
   cancelChat: (machineId: MachineId, threadId: ThreadId) => Promise<void>;
   switchModel: (machineId: MachineId, threadId: ThreadId, options: ComposerOptions) => Promise<void>;
+  startNewGeneration: (machineId: MachineId, threadId: ThreadId) => Promise<Thread>;
   previewLoggedIn: (accountEmail: string) => Promise<boolean>;
   onPreviewAuth: (handler: (event: PreviewAuthEvent) => void) => () => void;
   openTerminal: (machineId: MachineId, cols: number, rows: number) => Promise<void>;

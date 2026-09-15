@@ -1094,6 +1094,72 @@ button {
   padding: 10px 14px 14px;
 }
 
+.context-prompt {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 14px;
+  margin-bottom: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-elev);
+}
+
+.context-prompt.warn {
+  border-color: var(--term-yellow);
+}
+
+.context-prompt.high,
+.context-prompt.critical {
+  border-color: var(--danger);
+}
+
+.context-prompt-copy {
+  flex: 1 1 220px;
+}
+
+.context-prompt-copy p {
+  margin: 0;
+  color: var(--text);
+  font-size: 13px;
+}
+
+.context-size {
+  align-self: center;
+  color: var(--faint);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  letter-spacing: 0.02em;
+}
+
+.context-size.warn {
+  color: var(--term-yellow);
+}
+
+.context-size.high,
+.context-size.critical {
+  color: var(--danger);
+}
+
+.context-prompt-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.context-prompt-actions button {
+  padding: 4px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg-panel);
+  color: var(--text);
+}
+
+.context-prompt-actions button:disabled {
+  opacity: 0.5;
+}
+
 .composer-box {
   position: relative;
   border: 1px solid var(--border);
@@ -1130,6 +1196,24 @@ button {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
+}
+
+.working-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.working-label {
+  color: var(--faint);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  white-space: pre;
+}
+
+.working-letter-on {
+  color: var(--text);
+  font-weight: 650;
 }
 
 .chip-row,

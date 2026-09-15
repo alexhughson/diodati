@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { folderChoices, upsertThreadInCatalogs } from "@domain/catalog";
+import { maxContextTokensFor } from "@domain/contextUsage";
 import { classifyExeConnectError, firstErrorLine, type ExeConnectKind } from "@domain/exeConnect";
-import { defaultModel } from "@domain/model";
+import { pickModelOnList } from "@domain/model";
 import { machineIds, sortCatalogs, syncManualOrder, type SidebarSort } from "@domain/sidebarOrder";
 import type { MachineCatalog, Model, ProjectedMessage, ReasoningLevel, Thread } from "@shared/types";
 import { ChatPane } from "./ui/ChatPane";
@@ -32,7 +33,7 @@ import { readTheme, writeTheme, type ThemeId } from "./ui/themes";
 export function App() {
   const [catalogs, setCatalogs] = useState<MachineCatalog[]>([]);
   const [selectedMachineId, setSelectedMachineId] = useState<string | null>(null);
-  const [models, setModels] = useState<Model[]>([]);
+  const [modelsByMachine, setModelsByMachine] = useState<Record<string, Model[]>>({});
   const [thread, setThread] = useState<Thread | null>(null);
   const [composing, setComposing] = useState(false);
   const [draftCwd, setDraftCwd] = useState<string | null>(null);
@@ -43,6 +44,8 @@ export function App() {
   const [working, setWorking] = useState(false);
   const [liveDelta, setLiveDelta] = useState("");
   const [liveThought, setLiveThought] = useState("");
+  const [contextWindowSize, setContextWindowSize] = useState(0);
+  const [hideContextPromptFor, setHideContextPromptFor] = useState<string | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewLoggedIn, setPreviewLoggedIn] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -65,6 +68,11 @@ export function App() {
   }, [catalogs, selectedMachineId]);
   const selectedMachine = selectedCatalog?.machine ?? null;
 
+  const selectedMachineRef = useRef(selectedMachineId);
+  selectedMachineRef.current = selectedMachineId;
+  const modelIdRef = useRef(modelId);
+  modelIdRef.current = modelId;
+  const machineModels = selectedMachineId ? (modelsByMachine[selectedMachineId] ?? []) : [];
   const folders = selectedCatalog ? folderChoices(selectedCatalog) : [];
   const activeCwd = thread?.cwd ?? draftCwd;
   const composerOptions = {
@@ -72,6 +80,7 @@ export function App() {
     cwd: activeCwd,
     thinkingLevel,
   };
+  const maxContextTokens = maxContextTokensFor(machineModels, modelId);
 
   useEffect(() => {
     const next = readTheme();
@@ -214,6 +223,12 @@ export function App() {
           return event.thread;
         });
         setCatalogs((current) => upsertThreadInCatalogs(current, event.thread));
+        return;
+      }
+      if (event.kind === "context") {
+        if (thread && event.threadId === thread.id) {
+          setContextWindowSize(event.tokens);
+        }
       }
     });
   }, [thread]);
@@ -283,9 +298,25 @@ export function App() {
     setMessages([]);
     setLiveDelta("");
     setLiveThought("");
+    setContextWindowSize(0);
+    setHideContextPromptFor(null);
     setWorking(false);
     setError(null);
     setComposing(false);
+  };
+
+  const rememberModels = (machineId: string, nextModels: Model[]) => {
+    setModelsByMachine((current) => {
+      const next: Record<string, Model[]> = {};
+      for (const id of Object.keys(current)) {
+        const models = current[id];
+        if (models) {
+          next[id] = models;
+        }
+      }
+      next[machineId] = nextModels;
+      return next;
+    });
   };
 
   const defaultCwd = (machineId: string, source: MachineCatalog[] = catalogs): string | null => {
@@ -304,24 +335,27 @@ export function App() {
   const ensureModels = async (machineId: string, source: MachineCatalog[] = catalogs) => {
     const machine = source.find((item) => item.machine.id === machineId)?.machine;
     if (!machine || !machine.canShell) {
-      setModels([]);
+      rememberModels(machineId, []);
       return;
     }
     try {
       const nextModels = await window.diodati.listModels(machineId);
-      setModels(nextModels);
+      rememberModels(machineId, nextModels);
       markMachineError(machineId, null);
-      const current = nextModels.find((model) => model.id === modelId) ?? null;
-      const chosen = current ?? defaultModel(nextModels);
-      if (!chosen) {
+      if (selectedMachineRef.current !== machineId) {
         return;
       }
-      if (!current) {
+      const chosen = pickModelOnList(nextModels, modelIdRef.current);
+      if (!chosen) {
+        setModelId("");
+        return;
+      }
+      if (chosen.id !== modelIdRef.current) {
         setModelId(chosen.id);
         setThinkingLevel(chosen.defaultReasoningLevel);
       }
     } catch (err) {
-      setModels([]);
+      rememberModels(machineId, []);
       markMachineError(machineId, err instanceof Error ? err.message : String(err));
     }
   };
@@ -332,6 +366,7 @@ export function App() {
       setDraftCwd(defaultCwd(machineId, source));
     }
     setSelectedMachineId(machineId);
+    selectedMachineRef.current = machineId;
     await ensureModels(machineId, source);
   };
 
@@ -351,6 +386,7 @@ export function App() {
   const beginNewThread = async (machineId: string) => {
     resetChat();
     setSelectedMachineId(machineId);
+    selectedMachineRef.current = machineId;
     setComposing(true);
     setDraftCwd(defaultCwd(machineId));
     await ensureModels(machineId);
@@ -360,12 +396,16 @@ export function App() {
     setError(null);
     setComposing(false);
     setSelectedMachineId(next.machineId);
+    selectedMachineRef.current = next.machineId;
     setThread(next);
     setLiveDelta("");
     setLiveThought("");
+    setContextWindowSize(0);
+    setHideContextPromptFor(null);
     setMessages([]);
     if (next.model) {
       setModelId(next.model);
+      modelIdRef.current = next.model;
     }
     if (next.cwd) {
       setDraftCwd(next.cwd);
@@ -375,6 +415,7 @@ export function App() {
       const opened = await window.diodati.openThread(next.machineId, next.id);
       setThread(opened.thread);
       setMessages(opened.messages);
+      setContextWindowSize(opened.contextWindowSize);
       setWorking(opened.thread.working);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -397,6 +438,31 @@ export function App() {
       }
       await window.diodati.sendChat(selectedMachineId, current.id, message, composerOptions);
       setWorking(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    }
+  };
+
+  const compactThread = async () => {
+    if (!selectedMachineId || !thread) {
+      return;
+    }
+    setHideContextPromptFor(thread.id);
+    setContextWindowSize(0);
+    await send("/compact");
+  };
+
+  const newGeneration = async () => {
+    if (!selectedMachineId || !thread) {
+      return;
+    }
+    setError(null);
+    setHideContextPromptFor(thread.id);
+    setContextWindowSize(0);
+    try {
+      const next = await window.diodati.startNewGeneration(selectedMachineId, thread.id);
+      setThread(next);
+      setCatalogs((existing) => upsertThreadInCatalogs(existing, next));
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     }
@@ -622,7 +688,7 @@ export function App() {
             {selectedMachineId ? (
               <Composer
                 key={`${selectedMachineId}:${thread?.id ?? "draft"}`}
-                models={models}
+                models={machineModels}
                 modelId={modelId}
                 thinkingLevel={thinkingLevel}
                 machineId={selectedMachineId}
@@ -632,6 +698,18 @@ export function App() {
                 showFolder={!thread || Boolean(thread.isDraft)}
                 working={working}
                 disabled={false}
+                contextTokens={contextWindowSize}
+                maxContextTokens={maxContextTokens}
+                showContextPrompt={
+                  Boolean(thread) && hideContextPromptFor !== thread?.id
+                }
+                onCompact={() => void compactThread()}
+                onNewGeneration={() => void newGeneration()}
+                onDismissContextPrompt={() => {
+                  if (thread) {
+                    setHideContextPromptFor(thread.id);
+                  }
+                }}
                 onCwd={setDraftCwd}
                 onModel={async (nextModel) => {
                   setModelId(nextModel);

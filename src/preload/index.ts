@@ -23,6 +23,9 @@ const api: IpcApi = {
   switchModel: (machineId: MachineId, threadId: ThreadId, options: ComposerOptions) => {
     return ipcRenderer.invoke("thread.switchModel", machineId, threadId, options);
   },
+  startNewGeneration: (machineId: MachineId, threadId: ThreadId) => {
+    return ipcRenderer.invoke("thread.startNewGeneration", machineId, threadId);
+  },
   previewLoggedIn: (accountEmail: string) => ipcRenderer.invoke("auth.previewLoggedIn", accountEmail),
   onPreviewAuth: (handler: (event: PreviewAuthEvent) => void) => {
     const listener = (_event: unknown, event: PreviewAuthEvent) => {

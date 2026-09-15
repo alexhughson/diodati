@@ -108,6 +108,7 @@ function bindIpc(hub: SessionHub, preview: PreviewController, terminal: SshTermi
   ipcMain.removeHandler("thread.send");
   ipcMain.removeHandler("thread.cancel");
   ipcMain.removeHandler("thread.switchModel");
+  ipcMain.removeHandler("thread.startNewGeneration");
   ipcMain.removeHandler("auth.previewLoggedIn");
   ipcMain.removeHandler("machine.openTerminal");
   ipcMain.removeHandler("terminal.write");
@@ -141,6 +142,9 @@ function bindIpc(hub: SessionHub, preview: PreviewController, terminal: SshTermi
   ipcMain.handle("thread.cancel", (_event, machineId: string, threadId: string) => hub.cancelChat(machineId, threadId));
   ipcMain.handle("thread.switchModel", (_event, machineId: string, threadId: string, options) => {
     return hub.switchModel(machineId, threadId, options);
+  });
+  ipcMain.handle("thread.startNewGeneration", (_event, machineId: string, threadId: string) => {
+    return hub.startNewGeneration(machineId, threadId);
   });
   ipcMain.handle("auth.previewLoggedIn", (_event, accountEmail: string) => previewLoggedIn(accountEmail));
   ipcMain.handle("machine.openTerminal", (_event, machineId: string, cols: number, rows: number) => {

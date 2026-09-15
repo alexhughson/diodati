@@ -26,6 +26,7 @@ import {
   loadThreadMessages,
   sendChat,
   startCompaction,
+  startNewGeneration,
 } from "@infra/shelleyRemote";
 import { openShelleyStream, type StreamHandle } from "@infra/shelleyStream";
 import type { StreamEvent, ThreadOpened } from "@shared/ipc";
@@ -113,13 +114,21 @@ export class SessionHub {
 
   async openThread(machineId: MachineId, threadId: ThreadId): Promise<ThreadOpened> {
     if (this.demo) {
-      return { thread: demoThread(machineId, threadId), messages: demoMessages(threadId) };
+      return { thread: demoThread(machineId, threadId), messages: demoMessages(threadId), contextWindowSize: 0 };
     }
     const machine = this.machine(machineId);
     const opened = await loadThreadMessages(machine, threadId);
     const messages = this.replaceRows(threadId, opened.rows);
     this.replaceStream(machine, threadId);
-    return { thread: opened.thread, messages };
+    return { thread: opened.thread, messages, contextWindowSize: opened.contextWindowSize };
+  }
+
+  async startNewGeneration(machineId: MachineId, threadId: ThreadId): Promise<Thread> {
+    if (this.demo) {
+      this.machine(machineId);
+      return demoThread(machineId, threadId);
+    }
+    return startNewGeneration(this.machine(machineId), threadId);
   }
 
   async createDraft(machineId: MachineId, options: ComposerOptions): Promise<Thread> {

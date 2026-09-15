@@ -10,7 +10,7 @@ It uses the SSH keys already on this computer. You do not set up extra sign-in.
 
 [Download Diodati for macOS](https://github.com/alexhughson/diodati/releases/latest/download/Diodati-macOS.zip)
 
-This is an Apple Silicon build. Apple signed and notarized it.
+This is an Apple Silicon build.
 
 You need macOS on Apple Silicon, an exe.dev account, and an SSH key that exe.dev already accepts.
 

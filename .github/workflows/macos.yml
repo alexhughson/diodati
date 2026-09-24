@@ -6,6 +6,13 @@ on:
       - main
   pull_request:
 
+# One release at a time. Two main pushes in a row used to race on the
+# same download tag and then fail when cleanup deleted a tag that was
+# already gone.
+concurrency:
+  group: macos-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   package:
     if: github.event_name == 'pull_request'
@@ -73,10 +80,17 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
+          current="macos-${GITHUB_SHA}"
           gh release list --limit 50 --json tagName,isLatest --jq '.[] | select(.isLatest == false) | .tagName' | while IFS= read -r tag; do
             case "$tag" in
               macos|macos-*)
-                gh release delete "$tag" --yes --cleanup-tag
+                if [ "$tag" = "$current" ]; then
+                  continue
+                fi
+                # A prior run may have removed the release or the tag
+                # already. Keep going either way.
+                gh release delete "$tag" --yes 2>/dev/null || true
+                gh api -X DELETE "repos/${GITHUB_REPOSITORY}/git/refs/tags/${tag}" 2>/dev/null || true
                 ;;
             esac
           done

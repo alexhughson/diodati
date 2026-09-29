@@ -217,52 +217,43 @@ function spawnSsh(args: string[], options?: SshCommandOptions): Promise<SshResul
   });
 }
 
-export function remoteCurlGet(path: string): string {
+// systemd listens on 127.0.0.1:9999. The first connection starts shelley.
+// ~/.config/shelley/shelley.sock stays dead until that start. The TCP
+// listener rejects a request that omits X-Exedev-Userid.
+const SHELLEY_ORIGIN = "http://127.0.0.1:9999";
+
+function shelleyCurl(path: string, args: string[]): string {
   return [
     "curl",
-    "-sS",
-    "-m",
-    "30",
-    "--unix-socket",
-    '"$HOME/.config/shelley/shelley.sock"',
+    ...args,
     "-H",
     quoteRemote("Accept-Encoding: identity"),
-    quoteRemote(`http://localhost${path}`),
+    "-H",
+    quoteRemote("X-Exedev-Userid: user"),
+    quoteRemote(`${SHELLEY_ORIGIN}${path}`),
   ].join(" ");
 }
 
+export function remoteCurlGet(path: string): string {
+  return shelleyCurl(path, ["-sS", "-m", "30"]);
+}
+
 export function remoteCurlPost(path: string): string {
-  return [
-    "curl",
+  return shelleyCurl(path, [
     "-sS",
     "-m",
     "60",
-    "--unix-socket",
-    '"$HOME/.config/shelley/shelley.sock"',
-    "-H",
-    quoteRemote("Accept-Encoding: identity"),
     "-H",
     quoteRemote("Content-Type: application/json"),
     "-d",
     "@-",
     "-w",
     quoteRemote("\n%{http_code}"),
-    quoteRemote(`http://localhost${path}`),
-  ].join(" ");
+  ]);
 }
 
 export function remoteCurlStream(path: string): string {
-  return [
-    "curl",
-    "-sN",
-    "--unix-socket",
-    '"$HOME/.config/shelley/shelley.sock"',
-    "-H",
-    quoteRemote("Accept-Encoding: identity"),
-    "-H",
-    quoteRemote("Accept: text/event-stream"),
-    quoteRemote(`http://localhost${path}`),
-  ].join(" ");
+  return shelleyCurl(path, ["-sN", "-H", quoteRemote("Accept: text/event-stream")]);
 }
 
 export function requireOk(result: SshResult, label: string): string {

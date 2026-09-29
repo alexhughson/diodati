@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { interactiveSshArgs, sshControlPath } from "./ssh";
+import { interactiveSshArgs, remoteCurlGet, remoteCurlPost, remoteCurlStream, sshControlPath } from "./ssh";
 
 test("interactive ssh keeps dest as the last operand", () => {
   expect(interactiveSshArgs("alley-tablebase.exe.xyz")).toEqual([
@@ -40,6 +40,23 @@ test("interactive ssh accepts routed team dests", () => {
 
 test("interactive ssh rejects a dest that is a command string", () => {
   expect(() => interactiveSshArgs("host; id")).toThrow("refusing ssh dest");
+});
+
+test("shelley curl hits the systemd port and sends the required header", () => {
+  const get = remoteCurlGet("/api/conversations/snapshot");
+  expect(get).toContain("http://127.0.0.1:9999/api/conversations/snapshot");
+  expect(get).toContain("X-Exedev-Userid: user");
+  expect(get).not.toContain("unix-socket");
+
+  const post = remoteCurlPost("/api/chat");
+  expect(post).toContain("http://127.0.0.1:9999/api/chat");
+  expect(post).toContain("X-Exedev-Userid: user");
+  expect(post).toContain("Content-Type: application/json");
+
+  const stream = remoteCurlStream("/api/stream2?conversation=abc");
+  expect(stream).toContain("http://127.0.0.1:9999/api/stream2?conversation=abc");
+  expect(stream).toContain("Accept: text/event-stream");
+  expect(stream).not.toContain("unix-socket");
 });
 
 test("control path adds an identity tag so a wrong-key master is not reused", () => {

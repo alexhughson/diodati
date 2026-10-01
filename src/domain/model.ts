@@ -15,6 +15,22 @@ export type ShelleyModelRow = {
 
 const LEVELS = new Set<ReasoningLevel>(["off", "minimal", "low", "medium", "high", "xhigh", "max"]);
 
+export function thinkingLevelFromOptions(raw: unknown): ReasoningLevel | null {
+  let value = raw;
+  if (typeof raw === "string") {
+    try {
+      value = JSON.parse(raw);
+    } catch {
+      return parseReasoningLevel(raw);
+    }
+  }
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return null;
+  }
+  const level = (value as { thinking_level?: unknown }).thinking_level;
+  return parseReasoningLevel(typeof level === "string" ? level : undefined);
+}
+
 export function parseReasoningLevel(value: string | undefined): ReasoningLevel | null {
   if (!value) {
     return null;

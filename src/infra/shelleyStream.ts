@@ -76,7 +76,16 @@ export function openShelleyStream(
         }
       }
       if (frame.conversation) {
-        onEvent({ kind: "thread", thread: emitThread(frame.conversation) });
+        const thread = emitThread(frame.conversation);
+        onEvent({ kind: "thread", thread });
+        onEvent({
+          kind: "model",
+          threadId: thread.id,
+          patch: {
+            ...(thread.model ? { model: thread.model } : {}),
+            thinking: thread.thinkingLevel,
+          },
+        });
       }
       if (frame.conversation_state) {
         onEvent({
@@ -84,6 +93,13 @@ export function openShelleyStream(
           threadId: frame.conversation_state.conversation_id,
           working: frame.conversation_state.working,
         });
+        if (frame.conversation_state.model) {
+          onEvent({
+            kind: "model",
+            threadId: frame.conversation_state.conversation_id,
+            patch: { model: frame.conversation_state.model },
+          });
+        }
       }
       const deltaKind = frame.stream_delta ? liveStreamKind(frame.stream_delta.type) : null;
       if (deltaKind && frame.stream_delta?.text) {

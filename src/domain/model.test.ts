@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { modelFromRow, pickModelOnList } from "./model";
+import { modelFromRow, modelOnList, pickModelOnList, thinkingLevelFromOptions } from "./model";
 
 test("modelFromRow reads this machine's context window", () => {
   const model = modelFromRow({
@@ -21,4 +21,11 @@ test("pickModelOnList never takes a model from another machine", () => {
   ];
   expect(pickModelOnList(alley, "claude-sonnet-4.5")?.id).toBe("gpt-5.6-sol");
   expect(pickModelOnList(alley, "gpt-5.6-sol")?.id).toBe("gpt-5.6-sol");
+  expect(modelOnList(alley, "gpt-6.1-sol")).toBeNull();
+});
+
+test("thinkingLevelFromOptions reads the conversation options string", () => {
+  expect(thinkingLevelFromOptions('{"thinking_level":"high"}')).toBe("high");
+  expect(thinkingLevelFromOptions({ thinking_level: "medium" })).toBe("medium");
+  expect(thinkingLevelFromOptions("default")).toBeNull();
 });

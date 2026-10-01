@@ -13,9 +13,10 @@ function machine(partial: Machine): Machine {
   return partial;
 }
 
-function thread(partial: Omit<Thread, "parentId"> & { parentId?: string | null }): Thread {
+function thread(partial: Omit<Thread, "parentId" | "thinkingLevel"> & { parentId?: string | null; thinkingLevel?: Thread["thinkingLevel"] }): Thread {
   return {
     parentId: null,
+    thinkingLevel: null,
     ...partial,
   };
 }

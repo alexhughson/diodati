@@ -38,6 +38,14 @@ export type PreviewAuthEvent = {
   loggedIn: boolean;
 };
 
+export type ReasoningLevel = "off" | "minimal" | "low" | "medium" | "high" | "xhigh" | "max";
+
+// Absent keys stay as they are. thinking: null is Shelley "default".
+export type PickerPatch = {
+  model?: string;
+  thinking?: ReasoningLevel | null;
+};
+
 export type Thread = {
   id: ThreadId;
   machineId: MachineId;
@@ -49,6 +57,7 @@ export type Thread = {
   isDraft: boolean;
   working: boolean;
   parentId: string | null;
+  thinkingLevel: ReasoningLevel | null;
 };
 
 export type FolderGroup = {
@@ -62,8 +71,6 @@ export type MachineCatalog = {
   loadError: string | null;
   homeDir: string | null;
 };
-
-export type ReasoningLevel = "off" | "minimal" | "low" | "medium" | "high" | "xhigh" | "max";
 
 export type Model = {
   id: string;

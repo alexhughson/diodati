@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { layoutMessage, projectMessage, projectMessages, segmentBlocks } from "./message";
+import { latestRemotePickerHint, layoutMessage, projectMessage, projectMessages, segmentBlocks } from "./message";
 
 test("user text comes from llm content", () => {
   const message = projectMessage({
@@ -339,4 +339,76 @@ test("tool result on the next user message attaches to the agent tool", () => {
       errored: false,
     },
   ]);
+});
+
+test("modelchange rows update the picker model and later reasoning", () => {
+  const hint = latestRemotePickerHint([
+    {
+      message_id: "m-model",
+      conversation_id: "c1",
+      sequence_id: 536,
+      type: "modelchange",
+      created_at: "2026-10-01T16:23:12Z",
+      user_data: JSON.stringify({
+        from: "gpt-6-astra",
+        to: "gpt-6.1-sol",
+        text: "Model changed from gpt-6-astra to gpt-6.1-sol.",
+      }),
+    },
+    {
+      message_id: "m-reason",
+      conversation_id: "c1",
+      sequence_id: 539,
+      type: "modelchange",
+      created_at: "2026-10-01T16:23:18Z",
+      user_data: JSON.stringify({
+        from: "gpt-6.1-sol",
+        reasoning_from: "default",
+        reasoning_to: "high",
+        text: "Reasoning changed from default to high.",
+      }),
+    },
+  ]);
+  expect(hint).toEqual({ model: "gpt-6.1-sol", thinking: "high" });
+});
+
+test("a reasoning-only modelchange keeps the model key absent", () => {
+  const hint = latestRemotePickerHint([
+    {
+      message_id: "m-reason",
+      conversation_id: "c1",
+      sequence_id: 2,
+      type: "modelchange",
+      created_at: "2026-10-01T16:23:18Z",
+      user_data: JSON.stringify({
+        from: "gpt-6.1-sol",
+        reasoning_from: "default",
+        reasoning_to: "high",
+        text: "Reasoning changed from default to high.",
+      }),
+    },
+  ]);
+  expect(hint).toEqual({ thinking: "high" });
+});
+
+test("reasoning_to default clears thinking and keeps the model", () => {
+  const hint = latestRemotePickerHint([
+    {
+      message_id: "m-model",
+      conversation_id: "c1",
+      sequence_id: 1,
+      type: "modelchange",
+      created_at: "2026-10-01T16:23:12Z",
+      user_data: JSON.stringify({ to: "gpt-6.1-sol" }),
+    },
+    {
+      message_id: "m-default",
+      conversation_id: "c1",
+      sequence_id: 2,
+      type: "modelchange",
+      created_at: "2026-10-01T16:23:19Z",
+      user_data: JSON.stringify({ reasoning_to: "default" }),
+    },
+  ]);
+  expect(hint).toEqual({ model: "gpt-6.1-sol", thinking: null });
 });

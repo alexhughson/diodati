@@ -33,6 +33,7 @@ function thread(partial: Partial<Thread> & Pick<Thread, "id">): Thread {
     isDraft: false,
     working: false,
     parentId: null,
+    thinkingLevel: null,
     ...partial,
   };
 }

@@ -9,7 +9,7 @@ import {
   demoModels,
   demoThread,
 } from "@domain/demo";
-import { projectMessages, type ShelleyMessageRow } from "@domain/message";
+import { latestRemotePickerHint, projectMessages, type ShelleyMessageRow } from "@domain/message";
 import { modelSwitchCommand } from "@domain/model";
 import { compactInstructions } from "@domain/slash";
 import { requireMachine } from "@domain/machine";
@@ -132,6 +132,7 @@ export class SessionHub {
     const opened = await loadThreadMessages(machine, threadId);
     const messages = this.replaceRows(threadId, opened.rows);
     this.replaceStream(machine, threadId);
+    this.emitPickerHint(threadId);
     return { thread: opened.thread, messages, contextWindowSize: opened.contextWindowSize };
   }
 
@@ -157,6 +158,7 @@ export class SessionHub {
         isDraft: true,
         working: false,
         parentId: null,
+        thinkingLevel: null,
       };
     }
     return createDraft(this.machine(machineId), options);
@@ -287,6 +289,14 @@ export class SessionHub {
     return projectMessages(ordered);
   }
 
+  private emitPickerHint(threadId: ThreadId): void {
+    const hint = latestRemotePickerHint([...this.rows.values()]);
+    if (!hint) {
+      return;
+    }
+    this.emit({ kind: "model", threadId, patch: hint });
+  }
+
   private replaceStream(machine: Machine, threadId: ThreadId): void {
     if (this.stream) {
       this.stream.stop();
@@ -298,6 +308,7 @@ export class SessionHub {
           threadId: event.threadId,
           messages: this.ingestRows(event.threadId, event.rows),
         });
+        this.emitPickerHint(event.threadId);
         return;
       }
       this.emit(event);

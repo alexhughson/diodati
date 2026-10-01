@@ -45,6 +45,7 @@ function thread(partial: Partial<Thread> & Pick<Thread, "id">): Thread {
     isDraft: false,
     working: false,
     parentId: null,
+    thinkingLevel: null,
     ...partial,
   };
 }
@@ -66,6 +67,14 @@ test("threadFromRow keeps the parent id", () => {
   expect(child.parentId).toBe("parent");
   const parent = threadFromRow(row({ conversation_id: "parent", parent_conversation_id: null }), "box");
   expect(parent.parentId).toBeNull();
+});
+
+test("threadFromRow reads thinking level from conversation options", () => {
+  const next = threadFromRow(
+    row({ conversation_id: "parent", conversation_options: '{"thinking_level":"high"}' }),
+    "box",
+  );
+  expect(next.thinkingLevel).toBe("high");
 });
 
 test("subagents show under the open parent and stay hidden otherwise", () => {

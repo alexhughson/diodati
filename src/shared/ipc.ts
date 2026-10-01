@@ -7,6 +7,7 @@ import type {
   Model,
   PreviewAuthEvent,
   PreviewTarget,
+  PickerPatch,
   ProjectedMessage,
   SshSettings,
   Thread,
@@ -27,6 +28,7 @@ export type StreamEvent =
   | { kind: "messages"; threadId: ThreadId; messages: ProjectedMessage[] }
   | { kind: "delta"; threadId: ThreadId; type: "text" | "thinking"; text: string }
   | { kind: "working"; threadId: ThreadId; working: boolean }
+  | { kind: "model"; threadId: ThreadId; patch: PickerPatch }
   | { kind: "thread"; thread: Thread }
   | { kind: "threads"; machineId: MachineId; threads: Thread[] }
   | { kind: "context"; threadId: ThreadId; tokens: number }

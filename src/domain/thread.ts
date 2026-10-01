@@ -1,3 +1,4 @@
+import { thinkingLevelFromOptions } from "./model";
 import type { MachineId, Thread } from "@shared/types";
 
 export type ShelleyConversationRow = {
@@ -13,6 +14,7 @@ export type ShelleyConversationRow = {
   agent_working?: boolean;
   parent_conversation_id?: string | null;
   user_initiated?: boolean;
+  conversation_options?: unknown;
 };
 
 export function folderLabel(cwd: string | null): string {
@@ -63,6 +65,7 @@ export function threadFromRow(row: ShelleyConversationRow, machineId: MachineId)
     isDraft: row.is_draft,
     working: row.working === true || row.agent_working === true,
     parentId: parentId && parentId.length > 0 ? parentId : null,
+    thinkingLevel: thinkingLevelFromOptions(row.conversation_options),
   };
 }
 

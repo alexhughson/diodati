@@ -1,4 +1,5 @@
-import type { ChatBlock, ProjectedMessage } from "@shared/types";
+import type { ChatBlock, PickerPatch, ProjectedMessage } from "@shared/types";
+import { parseReasoningLevel } from "./model";
 import { patchViewForTool } from "./patch";
 
 export type ShelleyMessageRow = {
@@ -162,6 +163,41 @@ function userText(row: ShelleyMessageRow, llm: LlmMessage | null): string {
     }
   }
   return "";
+}
+
+export function remotePickerHintFromRow(row: ShelleyMessageRow): PickerPatch | null {
+  if (row.type !== "modelchange") {
+    return null;
+  }
+  const user = asRecord(parseJson(row.user_data));
+  if (!user) {
+    return null;
+  }
+  const patch: PickerPatch = {};
+  if (typeof user.to === "string" && user.to.length > 0) {
+    patch.model = user.to;
+  }
+  if (Object.hasOwn(user, "reasoning_to")) {
+    const raw = user.reasoning_to;
+    patch.thinking = parseReasoningLevel(typeof raw === "string" ? raw : undefined);
+  }
+  if (patch.model === undefined && patch.thinking === undefined) {
+    return null;
+  }
+  return patch;
+}
+
+export function latestRemotePickerHint(rows: ShelleyMessageRow[]): PickerPatch | null {
+  const ordered = [...rows].sort((left, right) => left.sequence_id - right.sequence_id);
+  let hint: PickerPatch | null = null;
+  for (const row of ordered) {
+    const next = remotePickerHintFromRow(row);
+    if (!next) {
+      continue;
+    }
+    hint = { ...hint, ...next };
+  }
+  return hint;
 }
 
 function noticeText(row: ShelleyMessageRow): string {

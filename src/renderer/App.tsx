@@ -10,9 +10,9 @@ import {
 } from "@domain/catalog";
 import { maxContextTokensFor } from "@domain/contextUsage";
 import { classifyExeConnectError, firstErrorLine, type ExeConnectKind } from "@domain/exeConnect";
-import { pickModelOnList } from "@domain/model";
+import { modelOnList, pickModelOnList } from "@domain/model";
 import { machineIds, sortCatalogs, syncManualOrder, type SidebarSort } from "@domain/sidebarOrder";
-import type { MachineCatalog, Model, ProjectedMessage, ReasoningLevel, Thread } from "@shared/types";
+import type { MachineCatalog, Model, PickerPatch, ProjectedMessage, ReasoningLevel, Thread } from "@shared/types";
 import { ChatPane } from "./ui/ChatPane";
 import { Composer } from "./ui/Composer";
 import { PreviewPane } from "./ui/PreviewPane";
@@ -232,6 +232,19 @@ export function App() {
   }, [selectedMachine?.accountEmail]);
 
   useEffect(() => {
+    const applyRemotePicker = (threadId: string, patch: PickerPatch) => {
+      const current = threadRef.current;
+      if (!current || current.id !== threadId) {
+        return;
+      }
+      if (patch.model !== undefined && patch.model.length > 0) {
+        setModelId(patch.model);
+        modelIdRef.current = patch.model;
+      }
+      if (patch.thinking !== undefined) {
+        setThinkingLevel(patch.thinking);
+      }
+    };
     return window.diodati.onStream((event) => {
       const currentThread = threadRef.current;
       if (event.kind === "error") {
@@ -262,10 +275,23 @@ export function App() {
         }
         return;
       }
+      if (event.kind === "model") {
+        applyRemotePicker(event.threadId, event.patch);
+        return;
+      }
       if (event.kind === "threads") {
         const bumped = bumpCatalogWrite(catalogWriteRef.current, event.machineId);
         catalogWriteRef.current = bumped.seq;
         setCatalogs((current) => replaceMachineThreads(current, event.machineId, event.threads));
+        if (currentThread && currentThread.machineId === event.machineId) {
+          const match = event.threads.find((item) => item.id === currentThread.id);
+          if (match) {
+            applyRemotePicker(match.id, {
+              model: match.model ?? undefined,
+              thinking: match.thinkingLevel,
+            });
+          }
+        }
         return;
       }
       if (event.kind === "thread") {
@@ -276,6 +302,10 @@ export function App() {
           return event.thread;
         });
         setCatalogs((current) => upsertThreadInCatalogs(current, event.thread));
+        applyRemotePicker(event.thread.id, {
+          model: event.thread.model ?? undefined,
+          thinking: event.thread.thinkingLevel,
+        });
         return;
       }
       if (event.kind === "context") {
@@ -373,6 +403,7 @@ export function App() {
     setWorking(false);
     setError(null);
     setComposing(false);
+    setThinkingLevel(null);
   };
 
   const rememberModels = (machineId: string, nextModels: Model[]) => {
@@ -415,12 +446,16 @@ export function App() {
       if (selectedMachineRef.current !== machineId) {
         return;
       }
-      const chosen = pickModelOnList(nextModels, modelIdRef.current);
+      const preferred = modelIdRef.current;
+      if (preferred && !modelOnList(nextModels, preferred)) {
+        return;
+      }
+      const chosen = pickModelOnList(nextModels, preferred);
       if (!chosen) {
         setModelId("");
         return;
       }
-      if (chosen.id !== modelIdRef.current) {
+      if (chosen.id !== preferred) {
         setModelId(chosen.id);
         setThinkingLevel(chosen.defaultReasoningLevel);
       }
@@ -477,6 +512,7 @@ export function App() {
       setModelId(next.model);
       modelIdRef.current = next.model;
     }
+    setThinkingLevel(next.thinkingLevel);
     if (next.cwd) {
       setDraftCwd(next.cwd);
     }
@@ -488,6 +524,11 @@ export function App() {
       setMessages(opened.messages);
       setContextWindowSize(opened.contextWindowSize);
       setWorking(opened.thread.working);
+      if (opened.thread.model) {
+        setModelId(opened.thread.model);
+        modelIdRef.current = opened.thread.model;
+      }
+      setThinkingLevel(opened.thread.thinkingLevel);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     }

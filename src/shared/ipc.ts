@@ -28,6 +28,7 @@ export type StreamEvent =
   | { kind: "delta"; threadId: ThreadId; type: "text" | "thinking"; text: string }
   | { kind: "working"; threadId: ThreadId; working: boolean }
   | { kind: "thread"; thread: Thread }
+  | { kind: "threads"; machineId: MachineId; threads: Thread[] }
   | { kind: "context"; threadId: ThreadId; tokens: number }
   | { kind: "error"; message: string };
 
@@ -38,6 +39,7 @@ export type IpcApi = {
   setSshSettings: (settings: SshSettings) => Promise<SshSettings>;
   probeAccounts: () => Promise<ExeAccountProbe[]>;
   loadAllCatalogs: () => Promise<MachineCatalog[]>;
+  loadCatalog: (machineId: MachineId) => Promise<MachineCatalog>;
   listModels: (machineId: MachineId) => Promise<Model[]>;
   openThread: (machineId: MachineId, threadId: ThreadId) => Promise<ThreadOpened>;
   createDraft: (machineId: MachineId, options: ComposerOptions) => Promise<Thread>;

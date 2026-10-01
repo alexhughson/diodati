@@ -2,8 +2,7 @@ import { useState } from "react";
 import { groupThreads } from "@domain/catalog";
 import { showAccountLabels } from "@domain/exeAccount";
 import { machineIds, moveManualOrder, sortCatalogs, syncManualOrder, type SidebarSort } from "@domain/sidebarOrder";
-import { displayFolder } from "@domain/thread";
-import { threadTitle } from "@domain/thread";
+import { displayFolder, selectedThreadOnMachine, threadTitle, topLevelThreads, visibleSubagents } from "@domain/thread";
 import type { MachineCatalog, Thread } from "@shared/types";
 import { CaretIcon, ComposeIcon, PlusIcon, RefreshIcon, SortIcon, TerminalIcon } from "./icons";
 import { Pop } from "./Pop";
@@ -202,7 +201,12 @@ function MachineBlock(props: {
   onToggleCollapsed: () => void;
 }) {
   const machine = props.catalog.machine;
-  const groups = groupThreads(props.catalog.threads);
+  const selectedThreadId = selectedThreadOnMachine(
+    props.selectedMachineId,
+    machine.id,
+    props.selectedThreadId,
+  );
+  const groups = groupThreads(topLevelThreads(props.catalog.threads));
   const flattenFolders = groups.length <= 1;
   const loadError = props.catalog.loadError;
   let dotClass = "dot";
@@ -321,18 +325,36 @@ function MachineBlock(props: {
               )}
               {group.threads.map((thread) => {
                 const title = threadTitle(thread);
+                const children = visibleSubagents(props.catalog.threads, thread.id, selectedThreadId);
                 return (
-                  <button
-                    key={thread.id}
-                    className={thread.id === props.selectedThreadId ? "thread active" : "thread"}
-                    title={title}
-                    onClick={() => props.onSelectThread(thread)}
-                  >
-                    <span className="title" title={title}>
-                      {title}
-                    </span>
-                    {thread.working ? <span className="thread-preview">working</span> : null}
-                  </button>
+                  <div key={thread.id}>
+                    <button
+                      className={thread.id === selectedThreadId ? "thread active" : "thread"}
+                      title={title}
+                      onClick={() => props.onSelectThread(thread)}
+                    >
+                      <span className="title" title={title}>
+                        {title}
+                      </span>
+                      {thread.working ? <span className="thread-preview">working</span> : null}
+                    </button>
+                    {children.map((child) => {
+                      const childTitle = threadTitle(child);
+                      return (
+                        <button
+                          key={child.id}
+                          className={child.id === selectedThreadId ? "thread subagent active" : "thread subagent"}
+                          title={childTitle}
+                          onClick={() => props.onSelectThread(child)}
+                        >
+                          <span className="title" title={childTitle}>
+                            {childTitle}
+                          </span>
+                          {child.working ? <span className="thread-preview">working</span> : null}
+                        </button>
+                      );
+                    })}
+                  </div>
                 );
               })}
             </div>

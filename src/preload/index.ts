@@ -11,6 +11,7 @@ const api: IpcApi = {
   setSshSettings: (settings: SshSettings) => ipcRenderer.invoke("sshSettings.set", settings),
   probeAccounts: () => ipcRenderer.invoke("accounts.probe"),
   loadAllCatalogs: () => ipcRenderer.invoke("catalogs.loadAll"),
+  loadCatalog: (machineId: MachineId) => ipcRenderer.invoke("catalogs.load", machineId),
   listModels: (machineId: MachineId) => ipcRenderer.invoke("models.list", machineId),
   openThread: (machineId: MachineId, threadId: ThreadId) => ipcRenderer.invoke("thread.open", machineId, threadId),
   createDraft: (machineId: MachineId, options: ComposerOptions) => {

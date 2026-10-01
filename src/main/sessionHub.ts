@@ -81,6 +81,18 @@ export class SessionHub {
     return Promise.all(this.machines.map((machine) => this.loadCatalogFor(machine)));
   }
 
+  async loadCatalog(machineId: MachineId): Promise<MachineCatalog> {
+    if (this.demo) {
+      const catalogs = demoCatalogs(this.ensureDemoMachines());
+      const found = catalogs.find((catalog) => catalog.machine.id === machineId);
+      if (!found) {
+        throw new Error(`unknown machine: ${machineId}`);
+      }
+      return found;
+    }
+    return this.loadCatalogFor(this.machine(machineId));
+  }
+
   async createMachine(name: string | null, identityFile: string | null): Promise<Machine> {
     if (this.demo) {
       const created = createDemoMachine(name, this.ensureDemoMachines());
@@ -144,6 +156,7 @@ export class SessionHub {
         updatedAt: new Date().toISOString(),
         isDraft: true,
         working: false,
+        parentId: null,
       };
     }
     return createDraft(this.machine(machineId), options);

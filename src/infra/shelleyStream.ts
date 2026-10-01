@@ -1,7 +1,7 @@
 import type { ChildProcess } from "node:child_process";
 import type { ShelleyMessageRow } from "@domain/message";
 import { liveStreamKind } from "@domain/streamDelta";
-import { threadFromRow, type ShelleyConversationRow } from "@domain/thread";
+import { threadFromRow, threadsFromListReset, type ShelleyConversationRow } from "@domain/thread";
 import type { StreamEvent } from "@shared/ipc";
 import type { Machine, Thread, ThreadId } from "@shared/types";
 import { remoteCurlStream, spawnSshProcess } from "./ssh";
@@ -18,6 +18,7 @@ type StreamFrame = {
   stream_delta?: { type: string; text: string };
   context_window_size?: number;
   heartbeat?: boolean;
+  conversation_list_patch?: { reset?: boolean; patch?: Array<{ op?: string; path?: string; value?: unknown }> };
 };
 
 export type StreamHandle = {
@@ -67,6 +68,12 @@ export function openShelleyStream(
           threadId: frameThreadId,
           rows: frame.messages,
         });
+      }
+      if (frame.conversation_list_patch) {
+        const threads = threadsFromListReset(frame.conversation_list_patch, machine.id);
+        if (threads) {
+          onEvent({ kind: "threads", machineId: machine.id, threads });
+        }
       }
       if (frame.conversation) {
         onEvent({ kind: "thread", thread: emitThread(frame.conversation) });

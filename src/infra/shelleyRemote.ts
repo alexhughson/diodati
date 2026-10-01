@@ -1,5 +1,5 @@
 import { modelsFromRows, type ShelleyModelRow } from "@domain/model";
-import { isTopLevelThread, threadFromRow, type ShelleyConversationRow } from "@domain/thread";
+import { threadsFromRows, threadFromRow, type ShelleyConversationRow } from "@domain/thread";
 import type { ShelleyMessageRow } from "@domain/message";
 import type { ComposerOptions, Machine, Model, Thread } from "@shared/types";
 import { remoteCurlGet, remoteCurlPost, requireOk, runSsh } from "./ssh";
@@ -59,14 +59,7 @@ export async function machineHomeDir(machine: Machine): Promise<string | null> {
 
 export async function listMachineThreads(machine: Machine): Promise<Thread[]> {
   const snapshot = await shelleyGetJson<Snapshot>(machine, "/api/conversations/snapshot");
-  const threads: Thread[] = [];
-  for (const row of snapshot.conversations) {
-    if (!isTopLevelThread(row)) {
-      continue;
-    }
-    threads.push(threadFromRow(row, machine.id));
-  }
-  return threads;
+  return threadsFromRows(snapshot.conversations, machine.id);
 }
 
 export async function listMachineModels(machine: Machine): Promise<Model[]> {

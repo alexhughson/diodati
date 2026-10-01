@@ -86,3 +86,65 @@ export function upsertThreadInCatalogs(catalogs: MachineCatalog[], thread: Threa
     return { ...catalog, threads: replaceThread(catalog.threads, thread) };
   });
 }
+
+export function bumpCatalogWrite(seq: Record<string, number>, machineId: string): {
+  seq: Record<string, number>;
+  token: number;
+} {
+  const token = (seq[machineId] ?? 0) + 1;
+  return { seq: { ...seq, [machineId]: token }, token };
+}
+
+export function isCurrentCatalogWrite(seq: Record<string, number>, machineId: string, token: number): boolean {
+  return seq[machineId] === token;
+}
+
+export function replaceMachineCatalog(catalogs: MachineCatalog[], catalog: MachineCatalog): MachineCatalog[] {
+  let found = false;
+  const next: MachineCatalog[] = [];
+  for (const item of catalogs) {
+    if (item.machine.id !== catalog.machine.id) {
+      next.push(item);
+      continue;
+    }
+    found = true;
+    next.push(catalog);
+  }
+  if (!found) {
+    return catalogs;
+  }
+  return next;
+}
+
+export function replaceMachineThreads(
+  catalogs: MachineCatalog[],
+  machineId: string,
+  threads: Thread[],
+): MachineCatalog[] {
+  return catalogs.map((catalog) => {
+    if (catalog.machine.id !== machineId) {
+      return catalog;
+    }
+    return { ...catalog, threads, loadError: null };
+  });
+}
+
+export function mergePolledCatalogs(
+  current: MachineCatalog[],
+  polled: MachineCatalog[],
+  started: Record<string, number>,
+  latest: Record<string, number>,
+): MachineCatalog[] {
+  const polledById = new Map<string, MachineCatalog>();
+  for (const catalog of polled) {
+    polledById.set(catalog.machine.id, catalog);
+  }
+  return current.map((catalog) => {
+    const id = catalog.machine.id;
+    const token = started[id];
+    if (token === undefined || latest[id] !== token) {
+      return catalog;
+    }
+    return polledById.get(id) ?? catalog;
+  });
+}

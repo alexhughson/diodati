@@ -48,6 +48,7 @@ export type Thread = {
   updatedAt: string;
   isDraft: boolean;
   working: boolean;
+  parentId: string | null;
 };
 
 export type FolderGroup = {

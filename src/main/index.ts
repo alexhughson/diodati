@@ -102,6 +102,7 @@ function bindIpc(hub: SessionHub, preview: PreviewController, terminal: SshTermi
   ipcMain.removeHandler("machines.list");
   ipcMain.removeHandler("machines.create");
   ipcMain.removeHandler("catalogs.loadAll");
+  ipcMain.removeHandler("catalogs.load");
   ipcMain.removeHandler("models.list");
   ipcMain.removeHandler("thread.open");
   ipcMain.removeHandler("thread.createDraft");
@@ -133,6 +134,7 @@ function bindIpc(hub: SessionHub, preview: PreviewController, terminal: SshTermi
   ipcMain.handle("sshSettings.set", (_event, settings: SshSettings) => hub.setSshSettings(settings));
   ipcMain.handle("accounts.probe", () => hub.probeAccounts());
   ipcMain.handle("catalogs.loadAll", () => hub.loadAllCatalogs());
+  ipcMain.handle("catalogs.load", (_event, machineId: string) => hub.loadCatalog(machineId));
   ipcMain.handle("models.list", (_event, machineId: string) => hub.listModels(machineId));
   ipcMain.handle("thread.open", (_event, machineId: string, threadId: string) => hub.openThread(machineId, threadId));
   ipcMain.handle("thread.createDraft", (_event, machineId: string, options) => hub.createDraft(machineId, options));

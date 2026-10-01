@@ -1,5 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { folderChoices, upsertThreadInCatalogs } from "@domain/catalog";
+import {
+  bumpCatalogWrite,
+  folderChoices,
+  isCurrentCatalogWrite,
+  mergePolledCatalogs,
+  replaceMachineCatalog,
+  replaceMachineThreads,
+  upsertThreadInCatalogs,
+} from "@domain/catalog";
 import { maxContextTokensFor } from "@domain/contextUsage";
 import { classifyExeConnectError, firstErrorLine, type ExeConnectKind } from "@domain/exeConnect";
 import { pickModelOnList } from "@domain/model";
@@ -29,6 +37,9 @@ import {
   type TerminalDock,
 } from "./ui/prefs";
 import { readTheme, writeTheme, type ThemeId } from "./ui/themes";
+
+// Shelley does not push the thread list. Poll it.
+const THREAD_LIST_REFRESH_MS = 15_000;
 
 export function App() {
   const [catalogs, setCatalogs] = useState<MachineCatalog[]>([]);
@@ -70,6 +81,11 @@ export function App() {
 
   const selectedMachineRef = useRef(selectedMachineId);
   selectedMachineRef.current = selectedMachineId;
+  const threadRef = useRef(thread);
+  threadRef.current = thread;
+  const catalogsRef = useRef(catalogs);
+  catalogsRef.current = catalogs;
+  const catalogWriteRef = useRef<Record<string, number>>({});
   const modelIdRef = useRef(modelId);
   modelIdRef.current = modelId;
   const machineModels = selectedMachineId ? (modelsByMachine[selectedMachineId] ?? []) : [];
@@ -98,6 +114,10 @@ export function App() {
     try {
       await window.diodati.listMachines();
       const nextCatalogs = await window.diodati.loadAllCatalogs();
+      for (const catalog of nextCatalogs) {
+        const bumped = bumpCatalogWrite(catalogWriteRef.current, catalog.machine.id);
+        catalogWriteRef.current = bumped.seq;
+      }
       setCatalogs(nextCatalogs);
       setConnectKind(null);
       setConnectMessage(null);
@@ -163,6 +183,32 @@ export function App() {
   }, []);
 
   useEffect(() => {
+    const refreshThreadLists = async () => {
+      const started: Record<string, number> = {};
+      for (const catalog of catalogsRef.current) {
+        const bumped = bumpCatalogWrite(catalogWriteRef.current, catalog.machine.id);
+        catalogWriteRef.current = bumped.seq;
+        started[catalog.machine.id] = bumped.token;
+      }
+      try {
+        const nextCatalogs = await window.diodati.loadAllCatalogs();
+        if (nextCatalogs.length === 0) {
+          return;
+        }
+        setCatalogs((current) => mergePolledCatalogs(current, nextCatalogs, started, catalogWriteRef.current));
+      } catch (err) {
+        setError(err instanceof Error ? err.message : String(err));
+      }
+    };
+    const timer = setInterval(() => {
+      void refreshThreadLists();
+    }, THREAD_LIST_REFRESH_MS);
+    return () => {
+      clearInterval(timer);
+    };
+  }, []);
+
+  useEffect(() => {
     let alive = true;
     const email = selectedMachine?.accountEmail;
     if (!email) {
@@ -187,12 +233,13 @@ export function App() {
 
   useEffect(() => {
     return window.diodati.onStream((event) => {
+      const currentThread = threadRef.current;
       if (event.kind === "error") {
         setError(event.message);
         return;
       }
       if (event.kind === "messages") {
-        if (thread && event.threadId === thread.id) {
+        if (currentThread && event.threadId === currentThread.id) {
           setMessages(event.messages);
           setLiveDelta("");
           setLiveThought("");
@@ -200,7 +247,7 @@ export function App() {
         return;
       }
       if (event.kind === "delta") {
-        if (thread && event.threadId === thread.id) {
+        if (currentThread && event.threadId === currentThread.id) {
           if (event.type === "thinking") {
             setLiveThought((current) => current + event.text);
             return;
@@ -210,9 +257,15 @@ export function App() {
         return;
       }
       if (event.kind === "working") {
-        if (thread && event.threadId === thread.id) {
+        if (currentThread && event.threadId === currentThread.id) {
           setWorking(event.working);
         }
+        return;
+      }
+      if (event.kind === "threads") {
+        const bumped = bumpCatalogWrite(catalogWriteRef.current, event.machineId);
+        catalogWriteRef.current = bumped.seq;
+        setCatalogs((current) => replaceMachineThreads(current, event.machineId, event.threads));
         return;
       }
       if (event.kind === "thread") {
@@ -226,12 +279,12 @@ export function App() {
         return;
       }
       if (event.kind === "context") {
-        if (thread && event.threadId === thread.id) {
+        if (currentThread && event.threadId === currentThread.id) {
           setContextWindowSize(event.tokens);
         }
       }
     });
-  }, [thread]);
+  }, []);
 
   useEffect(() => {
     if (!selectedMachine || !previewOpen) {
@@ -280,6 +333,23 @@ export function App() {
   const applyLayout = (next: LayoutSizes) => {
     setLayout(next);
     writeLayoutSizes(next);
+  };
+
+  const refreshMachineCatalog = async (machineId: string) => {
+    const bumped = bumpCatalogWrite(catalogWriteRef.current, machineId);
+    catalogWriteRef.current = bumped.seq;
+    try {
+      const catalog = await window.diodati.loadCatalog(machineId);
+      if (!isCurrentCatalogWrite(catalogWriteRef.current, machineId, bumped.token)) {
+        return;
+      }
+      setCatalogs((current) => replaceMachineCatalog(current, catalog));
+    } catch (err) {
+      if (!isCurrentCatalogWrite(catalogWriteRef.current, machineId, bumped.token)) {
+        return;
+      }
+      markMachineError(machineId, err instanceof Error ? err.message : String(err));
+    }
   };
 
   const markMachineError = (machineId: string, message: string | null) => {
@@ -410,6 +480,7 @@ export function App() {
     if (next.cwd) {
       setDraftCwd(next.cwd);
     }
+    void refreshMachineCatalog(next.machineId);
     try {
       await ensureModels(next.machineId, source);
       const opened = await window.diodati.openThread(next.machineId, next.id);

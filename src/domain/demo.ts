@@ -13,8 +13,11 @@ function machine(partial: Machine): Machine {
   return partial;
 }
 
-function thread(partial: Thread): Thread {
-  return partial;
+function thread(partial: Omit<Thread, "parentId"> & { parentId?: string | null }): Thread {
+  return {
+    parentId: null,
+    ...partial,
+  };
 }
 
 export const demoMachines: Machine[] = [
